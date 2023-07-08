@@ -1,0 +1,35 @@
+model: bertmap
+output_path: C:\Users\christina\Desktop\Workspace\alignment_tools\bert_map\bertmap
+  data
+annotation_property_iris:
+- http://www.w3.org/2000/01/rdf-schema#label
+- http://www.geneontology.org/formats/oboInOwl#hasSynonym
+- http://www.geneontology.org/formats/oboInOwl#hasExactSynonym
+- http://www.w3.org/2004/02/skos/core#exactMatch
+- http://www.ebi.ac.uk/efo/alternative_term
+- http://www.orpha.net/ORDO/Orphanet_#symbol
+- http://purl.org/sig/ont/fma/synonym
+- http://www.w3.org/2004/02/skos/core#prefLabel
+- http://www.w3.org/2004/02/skos/core#altLabel
+- http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#P108
+- http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#P90
+- https://www.omg.org/spec/Commons/AnnotationVocabulary/synonym
+- https://www.omg.org/spec/Commons/AnnotationVocabulary/abbreviation
+- https://www.omg.org/spec/Commons/AnnotationVocabulary/acronym
+known_mappings: null
+auxiliary_ontos: []
+bert:
+  pretrained_path: yiyanghkust/finbert-pretrain
+  max_length_for_input: 128
+  num_epochs_for_training: 3.0
+  batch_size_for_training: 16
+  batch_size_for_prediction: 32
+  resume_training: false
+global_matching:
+  enabled: true
+  num_raw_candidates: 200
+  num_best_predictions: 10
+  mapping_extension_threshold: 0.85
+  mapping_filtered_threshold: 0.87
+batch_size_for_training: 128
+batch_size_for_prediction: 64
