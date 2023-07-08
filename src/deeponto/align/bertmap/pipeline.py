@@ -101,6 +101,13 @@ class BERTMapPipeline:
         self.logger.info(f"Save the configuration file at {config_path}.")
         self.save_bertmap_config(self.config, config_path)
 
+        self.build_train_set()
+        self.config_bert()
+        self.run_predictor()
+
+
+    def build_train_set(self):
+
         # build the annotation thesaurus
         entity_type = "Classes"
         self.src_annotation_index, _ = self.src_onto.build_annotation_index(self.annotation_property_iris, entity_type=entity_type)
@@ -120,6 +127,9 @@ class BERTMapPipeline:
         # load or construct the corpora
         self.corpora_path = os.path.join(self.data_path, "text-semantics.corpora.json")
         self.corpora = self.load_text_semantics_corpora()
+
+
+    def config_bert(self):
 
         # load or construct fine-tune data
         self.finetune_data_path = os.path.join(self.data_path, "fine-tune.data.json")
@@ -158,6 +168,9 @@ class BERTMapPipeline:
             justify=enlighten.Justify.CENTER, demo='Initializing',
             autorefresh=True, min_delta=0.5
         )
+
+
+    def run_predictor(self):
 
         # mapping predictions
         self.global_matching_config = self.config.global_matching
@@ -200,6 +213,7 @@ class BERTMapPipeline:
         self.enlighten_status.close()
 
         # class pair scoring is invoked outside
+
 
     def load_or_construct(self, data_file: str, data_name: str, construct_func: Callable, *args, **kwargs):
         """Load existing data or construct a new one.
