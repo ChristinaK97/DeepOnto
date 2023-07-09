@@ -1,5 +1,5 @@
 model: bertmap
-output_path: C:\Users\christina\Desktop\Workspace\alignment_tools\bert_map\bertmap
+output_path: C:\Users\karal\progr\onto_workspace\alignment_tools\bert_map\DeepOnto-master\src\deeponto\align\bertmap\bertmap
   data
 annotation_property_iris:
 - http://www.w3.org/2000/01/rdf-schema#label

@@ -101,12 +101,12 @@ class BERTMapPipeline:
         self.logger.info(f"Save the configuration file at {config_path}.")
         self.save_bertmap_config(self.config, config_path)
 
-        self.build_train_set()
-        self.config_bert()
-        self.run_predictor()
+        self.build_corpora()
+        #self.config_bert()
+        #self.run_predictor()
 
 
-    def build_train_set(self):
+    def build_corpora(self):
 
         # build the annotation thesaurus
         entity_type = "Classes"
@@ -128,6 +128,75 @@ class BERTMapPipeline:
         self.corpora_path = os.path.join(self.data_path, "text-semantics.corpora.json")
         self.corpora = self.load_text_semantics_corpora()
 
+
+    def load_text_semantics_corpora(self):
+        """Load or construct text semantics corpora.
+
+        See [`TextSemanticsCorpora`][deeponto.align.bertmap.text_semantics.TextSemanticsCorpora].
+        """
+        data_name = "text semantics corpora"
+
+        if self.name == "bertmap":
+
+            def construct():
+                corpora = TextSemanticsCorpora(
+                    src_onto=self.src_onto,
+                    tgt_onto=self.tgt_onto,
+                    annotation_property_iris=self.annotation_property_iris,
+                    class_mappings=self.known_mappings,
+                    auxiliary_ontos=self.auxiliary_ontos,
+                )
+                self.logger.info(str(corpora))
+                corpora.save(self.data_path)
+
+            return self.load_or_construct(self.corpora_path, data_name, construct)
+
+        self.logger.info(f"No training needed; skip the construction of {data_name}.")
+        return None
+
+
+    def load_or_construct(self, data_file: str, data_name: str, construct_func: Callable, *args, **kwargs):
+        """Load existing data or construct a new one.
+
+        An auxlirary function that checks the existence of a data file and loads it if it exists.
+        Otherwise, construct new data with the input `construct_func` which is supported generate
+        a local data file.
+        """
+        if os.path.exists(data_file):
+            self.logger.info(f"Load existing {data_name} from {data_file}.")
+        else:
+            self.logger.info(f"Construct new {data_name} and save at {data_file}.")
+            construct_func(*args, **kwargs)
+        # load the data file that is supposed to be saved locally
+        return FileUtils.load_file(data_file)
+
+
+
+    def load_finetune_data(self):
+        r"""Load or construct fine-tuning data from text semantics corpora.
+
+        Steps of constructing fine-tuning data from text semantics:
+
+        1. Mix synonym and nonsynonym data.
+        2. Randomly sample 90% as training samples and 10% as validation.
+        """
+        data_name = "fine-tuning data"
+
+        if self.name == "bertmap":
+
+            def construct():
+                finetune_data = dict()
+                samples = self.corpora["synonyms"] + self.corpora["nonsynonyms"]
+                random.shuffle(samples)
+                split_index = int(0.9 * len(samples))  # split at 90%
+                finetune_data["training"] = samples[:split_index]
+                finetune_data["validation"] = samples[split_index:]
+                FileUtils.save_file(finetune_data, self.finetune_data_path)
+
+            return self.load_or_construct(self.finetune_data_path, data_name, construct)
+
+        self.logger.info(f"No training needed; skip the construction of {data_name}.")
+        return None
 
     def config_bert(self):
 
@@ -215,71 +284,7 @@ class BERTMapPipeline:
         # class pair scoring is invoked outside
 
 
-    def load_or_construct(self, data_file: str, data_name: str, construct_func: Callable, *args, **kwargs):
-        """Load existing data or construct a new one.
 
-        An auxlirary function that checks the existence of a data file and loads it if it exists.
-        Otherwise, construct new data with the input `construct_func` which is supported generate
-        a local data file.
-        """
-        if os.path.exists(data_file):
-            self.logger.info(f"Load existing {data_name} from {data_file}.")
-        else:
-            self.logger.info(f"Construct new {data_name} and save at {data_file}.")
-            construct_func(*args, **kwargs)
-        # load the data file that is supposed to be saved locally
-        return FileUtils.load_file(data_file)
-
-    def load_text_semantics_corpora(self):
-        """Load or construct text semantics corpora.
-
-        See [`TextSemanticsCorpora`][deeponto.align.bertmap.text_semantics.TextSemanticsCorpora].
-        """
-        data_name = "text semantics corpora"
-
-        if self.name == "bertmap":
-
-            def construct():
-                corpora = TextSemanticsCorpora(
-                    src_onto=self.src_onto,
-                    tgt_onto=self.tgt_onto,
-                    annotation_property_iris=self.annotation_property_iris,
-                    class_mappings=self.known_mappings,
-                    auxiliary_ontos=self.auxiliary_ontos,
-                )
-                self.logger.info(str(corpora))
-                corpora.save(self.data_path)
-
-            return self.load_or_construct(self.corpora_path, data_name, construct)
-
-        self.logger.info(f"No training needed; skip the construction of {data_name}.")
-        return None
-
-    def load_finetune_data(self):
-        r"""Load or construct fine-tuning data from text semantics corpora.
-
-        Steps of constructing fine-tuning data from text semantics:
-
-        1. Mix synonym and nonsynonym data.
-        2. Randomly sample 90% as training samples and 10% as validation.
-        """
-        data_name = "fine-tuning data"
-
-        if self.name == "bertmap":
-
-            def construct():
-                finetune_data = dict()
-                samples = self.corpora["synonyms"] + self.corpora["nonsynonyms"]
-                random.shuffle(samples)
-                split_index = int(0.9 * len(samples))  # split at 90%
-                finetune_data["training"] = samples[:split_index]
-                finetune_data["validation"] = samples[split_index:]
-                FileUtils.save_file(finetune_data, self.finetune_data_path)
-
-            return self.load_or_construct(self.finetune_data_path, data_name, construct)
-
-        self.logger.info(f"No training needed; skip the construction of {data_name}.")
-        return None
 
     def load_bert_synonym_classifier(self):
         """Load the BERT model from a pre-trained or a local checkpoint.
