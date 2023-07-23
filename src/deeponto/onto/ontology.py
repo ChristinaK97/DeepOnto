@@ -52,6 +52,11 @@ from org.semanticweb.owlapi.search import EntitySearcher  # type: ignore
 # from org.semanticweb.elk.owlapi import ElkReasonerFactory as ReasonerFactory
 
 
+# PELLET REASONER ======================================================================================================
+from com.clarkparsia.pellet.owlapiv3 import PelletReasoner, PelletReasonerFactory
+from org.mindswap.pellet import KnowledgeBase
+from org.semanticweb.owlapi.reasoner import Node, NodeSet
+
 
 # OWL ELEMENTS =========================================================================================================
 # IRIs for special entities
@@ -94,7 +99,7 @@ class Ontology:
         reasoner (OntologyReasoner): A reasoner for ontology inference.
     """
 
-    def __init__(self, owl_path: str):
+    def __init__(self, owl_path: str, reasoner: str):
         """Initialise a new ontology.
 
         Args:
@@ -120,7 +125,7 @@ class Ontology:
         self.owl_annotation_properties = self.get_owl_objects("AnnotationProperties")
 
         # reasoning
-        self.reasoner = OntologyReasoner(self)
+        self.reasoner = OntologyReasoner(self, reasoner)
         print(type(self.reasoner))
 
         # hidden attributes
@@ -429,7 +434,7 @@ class Ontology:
             all_class_iris = list(self.owl_classes.keys()) + [OWL_THING]  # including the root node
 
             for cl_iri in tqdm(all_class_iris):
-                print(cl_iri)
+                # print("TO CHECK STUCK POINT", cl_iri)
 
                 if cl_iri == OWL_THING:
                     cl = self.OWLThing
@@ -562,14 +567,22 @@ class OntologyReasoner:
         owl_data_factory (OWLDataFactory): A data factory (inherited from `onto`) for manipulating axioms.
     """
 
-    def __init__(self, onto: Ontology):
+    def __init__(self, onto: Ontology, reasoner: str):
         """Initialise an ontology reasoner.
 
         Args:
             onto (Ontology): The input ontology to conduct reasoning on.
         """
         self.onto = onto
-        self.owl_reasoner_factory = ReasonerFactory()
+
+        # init reasoner factory
+        if reasoner == "Hermit":
+            self.owl_reasoner_factory = ReasonerFactory()
+        elif reasoner == "Pellet":
+            self.owl_reasoner_factory = PelletReasonerFactory.getInstance()
+        else:
+            raise Exception(f"Unsupported reasoner {reasoner}. Set config.reasoner to Hermit or Pellet")
+
         self.owl_reasoner = self.owl_reasoner_factory.createReasoner(self.onto.owl_onto)
         print(type(self.owl_reasoner))
         self.owl_data_factory = self.onto.owl_data_factory
@@ -642,9 +655,9 @@ class OntologyReasoner:
         entity_type = self.get_entity_type(entity)
         get_sub = f"getSub{entity_type}"
         BOTTOM = TOP_BOTTOMS[entity_type].BOTTOM
-        print("find sub-entities")
+        # print("STUCK POINT : find sub-entities")
         sub_entities = getattr(self.owl_reasoner, get_sub)(entity, direct).getFlattened()
-        print("found subentities")
+        # print("PASS STUCK POINT : found subentities")
         sub_entity_iris = [str(s.getIRI()) for s in sub_entities]
         # the root node is owl#Thing
         if BOTTOM in sub_entity_iris:

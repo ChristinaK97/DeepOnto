@@ -37,6 +37,8 @@ annotation_property_iris:
 known_mappings: null  # if provided, cross-ontology corpus will be built
 auxiliary_ontos: [] # a list of auxiliary ontology files used for extra synonym data
 
+reasoner: Pellet
+
 # bert config
 bert:  
   pretrained_path: emilyalsentzer/Bio_ClinicalBERT  # pre-trained BERT path
