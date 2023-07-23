@@ -54,8 +54,6 @@ from org.semanticweb.owlapi.search import EntitySearcher  # type: ignore
 
 # PELLET REASONER ======================================================================================================
 from com.clarkparsia.pellet.owlapiv3 import PelletReasoner, PelletReasonerFactory
-from org.mindswap.pellet import KnowledgeBase
-from org.semanticweb.owlapi.reasoner import Node, NodeSet
 
 
 # OWL ELEMENTS =========================================================================================================
@@ -434,7 +432,7 @@ class Ontology:
             all_class_iris = list(self.owl_classes.keys()) + [OWL_THING]  # including the root node
 
             for cl_iri in tqdm(all_class_iris):
-                # print("TO CHECK STUCK POINT", cl_iri)
+                # print(cl_iri) # "TO CHECK STUCK POINT"
 
                 if cl_iri == OWL_THING:
                     cl = self.OWLThing
@@ -442,7 +440,7 @@ class Ontology:
                     cl = self.get_owl_object_from_iri(cl_iri)
 
                 children_iris = self.reasoner.get_inferred_sub_entities(cl, direct=True)
-                print(len(children_iris))
+                # print(len(children_iris))
                 self._multi_children_classes[cl_iri] = children_iris
 
                 if len(children_iris) > 1:
