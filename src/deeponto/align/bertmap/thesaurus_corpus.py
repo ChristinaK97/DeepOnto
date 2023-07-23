@@ -6,19 +6,28 @@ from nltk.corpus import stopwords
 from rdflib import Graph
 from nltk.tokenize import word_tokenize
 from nltk.corpus import wordnet
+from tqdm import tqdm
+
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
-class ThesaurusCorpus:
+class WordNetCorpus:
 
     def __init__(self, ontologyPath, allAnnotProperties):
         print("Build WordNet Corpus for", ontologyPath)
         self.annotProperties = allAnnotProperties
         self.stopwordsList = set(stopwords.words('english'))
-        self.corpus = self.findSynAndAntonyms(
-                            self.extractOntologyTokens(ontologyPath))
-        print("WordNet corpus size =", len(self.corpus))
+        ontologyTokens = self.extractOntologyTokens(ontologyPath)
+        self.synonyms, self.nonsynonyms = self.findSynAndAntonyms(ontologyTokens)
+        self.info = {
+            type(self).__name__: {
+                "num_synonyms": len(self.synonyms),
+                "num_nonsynonyms": len(self.nonsynonyms),
+                "num_ontology_tokens": len(ontologyTokens)
+            }
+        }
+        print(self.info)
 
 
 
@@ -42,7 +51,6 @@ class ThesaurusCorpus:
         for annotation in results:
             ontologyTokens.update(self.getAnnotationToken(annotation[0]))
 
-        print("# ontology tokens = ", len(ontologyTokens))
         return ontologyTokens
 
 
@@ -57,29 +65,21 @@ class ThesaurusCorpus:
 
     def findSynAndAntonyms(self, ontologyTokens):
 
-        corpus = []
+        synonyms, nonsynonyms = [], []
 
-        for token in ontologyTokens:
-            # print(token)
-            tokenSynonyms, tokenAntonyms = set(), set()
+        for token in tqdm(ontologyTokens):
 
             for syn in wordnet.synsets(token):
                 for lemma in syn.lemmas():
 
                     name = lemma.name().lower()
                     if name != token:
-                        tokenSynonyms.add(self.rmvPunct(name))
+                        synonyms.append((token, self.rmvPunct(name)))
 
                     if lemma.antonyms():
-                        tokenAntonyms.add(self.rmvPunct(lemma.antonyms()[0].name().lower()))
-
-            # print("Syn", tokenSynonyms, "\nAnt", tokenAntonyms, "\n")
-
-            for nameSet, label in ((tokenSynonyms, 1), (tokenAntonyms, 0)):
-                for el in nameSet:
-                    corpus.append([token, el, label])
-
-        return corpus
+                        nonsynonyms.append((token,
+                                            self.rmvPunct(lemma.antonyms()[0].name().lower())))
+        return synonyms, nonsynonyms
 
 
     def rmvPunct(self, name):

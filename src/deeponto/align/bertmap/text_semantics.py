@@ -22,6 +22,7 @@ from typing import List, Set, Tuple, Optional, Union
 
 from tqdm import tqdm
 
+# from src.deeponto.align.bertmap.thesaurus_corpus import WordNetCorpus
 from src.deeponto.onto import Ontology
 from src.deeponto.align.mapping import ReferenceMapping
 from src.deeponto.utils import FileUtils, DataUtils
@@ -504,7 +505,9 @@ class TextSemanticsCorpora:
         self,
         src_onto: Ontology,
         tgt_onto: Ontology,
+        tgt_onto_path: str,
         annotation_property_iris: List[str],
+        additional_annotation_iris: List[str],
         class_mappings: Optional[List[ReferenceMapping]] = None,
         auxiliary_ontos: Optional[List[Ontology]] = None,
     ):
@@ -537,6 +540,12 @@ class TextSemanticsCorpora:
                 )
         for auxiliary_onto_corpus in self.auxiliary_onto_corpora:
             self.add_samples_from_sub_corpus(auxiliary_onto_corpus)
+
+
+        # Build wordnet corpora from target (domain) ontology
+        #self.wordnetCorpus = WordNetCorpus(tgt_onto_path, annotation_property_iris + additional_annotation_iris)
+        #self.add_samples_from_sub_corpus(self.wordnetCorpus)
+
 
         # DataUtils.uniqify the samples
         self.synonyms = DataUtils.uniqify(self.synonyms)
@@ -572,7 +581,7 @@ class TextSemanticsCorpora:
         FileUtils.save_file(save_json, os.path.join(save_path, "text-semantics.corpora.json"))
 
     def add_samples_from_sub_corpus(
-        self, sub_corpus: Union[IntraOntologyTextSemanticsCorpus, CrossOntologyTextSemanticsCorpus]
+        self, sub_corpus: Union[IntraOntologyTextSemanticsCorpus, CrossOntologyTextSemanticsCorpus] #, WordNetCorpus]
     ):
         """Add synonyms and non-synonyms from each sub-corpus to the overall collection."""
         self.synonyms += sub_corpus.synonyms

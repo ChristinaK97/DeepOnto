@@ -27,6 +27,7 @@ import jpype
 from src.deeponto.utils import TextUtils, Tokenizer, InvertedIndex, FileUtils, DataUtils
 from src.deeponto import init_jvm
 
+# ======================================================================================================================
 # initialise JVM for python-java interaction
 import click
 
@@ -35,16 +36,24 @@ if not jpype.isJVMStarted():
     print()
     init_jvm(memory)
 
+# ======================================================================================================================
 from java.io import File  # type: ignore
 from java.util import Collections  # type: ignore
 from org.semanticweb.owlapi.apibinding import OWLManager  # type: ignore
 from org.semanticweb.owlapi.model import IRI, OWLObject, OWLClassExpression, OWLObjectPropertyExpression, OWLDataPropertyExpression, OWLNamedIndividual, OWLAxiom, AddAxiom, RemoveAxiom, AxiomType  # type: ignore
+
+# HERMIT REASONER ======================================================================================================
 from org.semanticweb.HermiT import ReasonerFactory  # type: ignore
-# import org.semanticweb.elk.owlapi.ElkReasonerFactory;
-# from org.semanticweb.elk.owlapi import ElkReasonerFactory as ReasonerFactory
 from org.semanticweb.owlapi.util import OWLObjectDuplicator, OWLEntityRemover  # type: ignore
 from org.semanticweb.owlapi.search import EntitySearcher  # type: ignore
 
+# ELK REASONER =========================================================================================================
+# import org.semanticweb.elk.owlapi.ElkReasonerFactory;
+# from org.semanticweb.elk.owlapi import ElkReasonerFactory as ReasonerFactory
+
+
+
+# OWL ELEMENTS =========================================================================================================
 # IRIs for special entities
 OWL_THING = "http://www.w3.org/2002/07/owl#Thing"
 OWL_NOTHING = "http://www.w3.org/2002/07/owl#Nothing"
@@ -62,7 +71,7 @@ TOP_BOTTOMS = CfgNode(
         "DataProperties": {"TOP": OWL_TOP_DATA_PROPERTY, "BOTTOM": OWL_BOTTOM_DATA_PROPERTY},
     }
 )
-
+# ======================================================================================================================
 
 class Ontology:
     """Ontology class that extends from the Java library OWLAPI.
@@ -539,6 +548,9 @@ class Ontology:
         replacer = OWLObjectDuplicator(self.owl_data_factory, iri_dict)
         return replacer.duplicateObject(owl_object)
 
+# ======================================================================================================================
+# ======================================================================================================================
+# ======================================================================================================================
 
 class OntologyReasoner:
     """Ontology reasoner class that extends from the Java library OWLAPI.
@@ -630,7 +642,9 @@ class OntologyReasoner:
         entity_type = self.get_entity_type(entity)
         get_sub = f"getSub{entity_type}"
         BOTTOM = TOP_BOTTOMS[entity_type].BOTTOM
+        print("find sub-entities")
         sub_entities = getattr(self.owl_reasoner, get_sub)(entity, direct).getFlattened()
+        print("found subentities")
         sub_entity_iris = [str(s.getIRI()) for s in sub_entities]
         # the root node is owl#Thing
         if BOTTOM in sub_entity_iris:
