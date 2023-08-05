@@ -45,7 +45,7 @@ config.batch_size_for_prediction = 64
 config.global_matching.mapping_filtered_threshold = 0.87
 config.global_matching.mapping_extension_threshold = 0.85
 
-config.bert.resume_training = False
+# config.bert.resume_training = False
 print(config)
 
 # Load Ontologies and run bertmap pipeline

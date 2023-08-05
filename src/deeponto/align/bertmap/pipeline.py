@@ -102,8 +102,10 @@ class BERTMapPipeline:
         self.save_bertmap_config(self.config, config_path)
 
         self.build_corpora()
-        #self.config_bert()
-        #self.run_predictor()
+
+        # Run bert
+        self.config_bert()
+        self.run_predictor()
 
 
     def build_corpora(self):

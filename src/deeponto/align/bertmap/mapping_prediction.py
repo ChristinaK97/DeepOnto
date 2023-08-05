@@ -106,7 +106,10 @@ class MappingPredictor:
             return prelim_score
         # apply BERT classifier and define mapping score := Average(SynonymScores)
         class_annotation_pairs = list(itertools.product(src_class_annotations, tgt_class_annotations))
-        synonym_scores = self.bert_synonym_classifier.predict(class_annotation_pairs)
+        if len(class_annotation_pairs) != 0:
+            synonym_scores = self.bert_synonym_classifier.predict(class_annotation_pairs)
+        else:
+            synonym_scores = torch.tensor([0], dtype=torch.float)
         # only one element tensor is able to be extracted as a scalar by .item()
         return float(torch.mean(synonym_scores).item())
 
