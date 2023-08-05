@@ -149,6 +149,7 @@ class BERTMapPipeline:
                     additional_annotation_iris= self.config.additional_annotation_iris,
                     class_mappings=self.known_mappings,
                     auxiliary_ontos=self.auxiliary_ontos,
+                    use_wordnet=self.config.use_wordnet
                 )
                 self.logger.info(str(corpora))
                 corpora.save(self.data_path)

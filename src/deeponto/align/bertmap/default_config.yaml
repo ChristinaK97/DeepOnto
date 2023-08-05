@@ -38,6 +38,7 @@ known_mappings: null  # if provided, cross-ontology corpus will be built
 auxiliary_ontos: [] # a list of auxiliary ontology files used for extra synonym data
 
 reasoner: Pellet
+use_wordnet: True
 
 # bert config
 bert:  

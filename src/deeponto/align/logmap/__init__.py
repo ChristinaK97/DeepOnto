@@ -28,6 +28,8 @@ def run_logmap_repair(
     tgt_onto_path = os.path.abspath(tgt_onto_path)
     mapping_file_path = os.path.abspath(mapping_file_path)
     output_path = os.path.abspath(output_path)
+
+    print("Output path= ", output_path)
     
     # run jar command
     print(f"Run the repair module of LogMap from {logmap_path}.")
