@@ -42,8 +42,11 @@ config.bert.pretrained_path = "yiyanghkust/finbert-pretrain"
 config.batch_size_for_training = 128
 config.batch_size_for_prediction = 64
 
-config.global_matching.mapping_filtered_threshold = 0.87
+
+config.number_raw_candidates = 400
+config.global_matching.num_best_predictions = 15
 config.global_matching.mapping_extension_threshold = 0.85
+config.global_matching.mapping_filtered_threshold = 0.95
 
 # config.bert.resume_training = False
 print(config)

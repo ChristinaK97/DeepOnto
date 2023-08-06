@@ -105,15 +105,12 @@ class BERTMapPipeline:
 
         # Run bert
         self.config_bert()
-        self.run_predictor()
-
+        for entity_type in ["Classes", "ObjectProperties", "DataProperties"]:
+            self.run_predictor(entity_type)
+        self.run_repair()
 
     def build_corpora(self):
 
-        # build the annotation thesaurus
-        entity_type = "Classes"
-        self.src_annotation_index, _ = self.src_onto.build_annotation_index(self.annotation_property_iris, entity_type=entity_type)
-        self.tgt_annotation_index, _ = self.tgt_onto.build_annotation_index(self.annotation_property_iris, entity_type=entity_type)
 
         # provided mappings if any
         self.known_mappings = self.config.known_mappings
@@ -123,7 +120,7 @@ class BERTMapPipeline:
         # auxiliary ontologies if any
         self.auxiliary_ontos = self.config.auxiliary_ontos
         if self.auxiliary_ontos:
-            self.auxiliary_ontos = [Ontology(ao) for ao in self.auxiliary_ontos]
+            self.auxiliary_ontos = [Ontology(ao, self.config.reasoner) for ao in self.auxiliary_ontos]
 
         self.data_path = os.path.join(self.output_path, "data")
         # load or construct the corpora
@@ -244,7 +241,11 @@ class BERTMapPipeline:
         )
 
 
-    def run_predictor(self):
+    def run_predictor(self, entity_type):
+
+        # build the annotation thesaurus
+        self.src_annotation_index, _ = self.src_onto.build_annotation_index(self.annotation_property_iris, entity_type=entity_type)
+        self.tgt_annotation_index, _ = self.tgt_onto.build_annotation_index(self.annotation_property_iris, entity_type=entity_type)
 
         # mapping predictions
         self.global_matching_config = self.config.global_matching
@@ -279,7 +280,7 @@ class BERTMapPipeline:
                     enlighten_status=self.enlighten_status
                 )
                 self.mapping_refiner.mapping_extension()  # mapping extension
-                self.mapping_refiner.mapping_repair()  # mapping repair
+                # self.mapping_refiner.mapping_repair()  # mapping repair
             self.enlighten_status.update(demo="Finished")  
         else:
             self.enlighten_status.update(demo="Skipped")  
@@ -288,7 +289,8 @@ class BERTMapPipeline:
 
         # class pair scoring is invoked outside
 
-
+    def run_repair(self):
+        self.mapping_refiner.mapping_repair()  # mapping repair
 
 
     def load_bert_synonym_classifier(self):
