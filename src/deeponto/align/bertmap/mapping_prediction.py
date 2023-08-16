@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+from os.path import exists
 from typing import Optional, List, Set, Tuple
 from yacs.config import CfgNode
 import os
@@ -49,6 +50,8 @@ class MappingPredictor:
         batch_size_for_prediction (int): The batch size of class annotation pairs for computing synonym scores.
     """
 
+    override = True
+
     def __init__(
         self,
         output_path: str,
@@ -83,6 +86,20 @@ class MappingPredictor:
         self.output_path = output_path
 
         self.init_class_mapping = lambda head, tail, score: EntityMapping(head, tail, "<EquivalentTo>", score)
+
+
+        # new log file
+        self.logfile = output_path + "logfile.txt"
+        if MappingPredictor.override:
+            MappingPredictor.override = False
+            with open(self.logfile, 'w') as file:
+                file.write("")
+    def writelog(self, message):
+        mode = "a" if exists(self.logfile) else "w"
+        with open(self.logfile, mode) as file:
+            file.write(message)
+
+
 
     def bert_mapping_score(
         self,
@@ -132,8 +149,12 @@ class MappingPredictor:
             return 0.0
         annotation_pairs = itertools.product(src_class_annotations, tgt_class_annotations)
         sim_scores = [levenshtein.normalized_similarity(src, tgt) for src, tgt in annotation_pairs]
-        return max(sim_scores)
+        return max(sim_scores) if len(sim_scores) > 0 else 0.0
 
+
+    """
+    FIND BEST TGT CANDIDATES FOR src_class_iri
+    """
     def mapping_prediction_for_src_class(self, src_class_iri: str) -> List[EntityMapping]:
         r"""Predict $N$ best scored mappings for a source ontology class, where
         $N$ is specified in `self.num_best_predictions`.
@@ -157,7 +178,7 @@ class MappingPredictor:
         tgt_class_candidates = self.tgt_inverted_annotation_index.idf_select(
             list(src_class_annotations), pool_size=self.num_raw_candidates
         )  # [(tgt_class_iri, idf_score)]
-        best_scored_mappings = []
+        best_scored_mappings = []                                                                                       ; self.writelog(f"\nSrc annot = {src_class_annotations}\n\tTrg annot {len(tgt_class_candidates)} = " + ("\n\t".join(str(t) for t in tgt_class_candidates)) + "\n")
 
         # for string matching: save time if already found string-matched candidates
         def string_match():
@@ -181,8 +202,10 @@ class MappingPredictor:
         best_scored_mappings += string_match()
         # return string-matched mappings if found or if there is no bert module (bertmaplt)
         if best_scored_mappings or not self.bert_synonym_classifier:
-            self.logger.info(f"The best scored class mappings for {src_class_iri} are\n{best_scored_mappings}")
+            self.logger.info(f"The best scored class mappings for {src_class_iri} are\n{best_scored_mappings}")         ; self.writelog(f"The best string scored class mappings for {src_class_iri} are\n{best_scored_mappings}\n")
             return best_scored_mappings
+
+        # else, run bert and return its matches :
 
         def generate_batched_annotations(batch_size: int):
             """Generate batches of class annotations for the input source class and its
@@ -196,7 +219,8 @@ class MappingPredictor:
                 annotation_pairs = list(itertools.product(src_class_annotations, tgt_candidate_annotations))
                 current_batch.annotations += annotation_pairs
                 num_annotation_pairs = len(annotation_pairs)
-                current_batch.nums.append(num_annotation_pairs)
+                current_batch.nums.append(num_annotation_pairs)                                                         ; self.writelog(f"Tgt cand = {tgt_candidate_iri}\n\ttgt annot = {tgt_candidate_annotations}\n\tannot pairs = {annotation_pairs}\n\tnum annot pairs = {num_annotation_pairs}\n\tcurr batch = <{current_batch.annotations},\n\t\t{current_batch.nums}>\n")
+
                 # collect when the batch is full or for the last target class candidate
                 if sum(current_batch.nums) > batch_size or i == len(tgt_class_candidates) - 1:
                     batches.append(current_batch)
@@ -224,8 +248,15 @@ class MappingPredictor:
                     synonym_scores,
                     split_size_or_sections=annotation_batch.nums,
                 )
+
+                # TODO try replacing mean with max
+                # account_key has candidate = 'ClientsAndAccounts/AccountIdentifier'
+                # annotations: [('account key', 'account identifier'), ('account key', 'account number'),...] , numns:[2,....]
+                # grouped for cand = tensor([0.0022, 0.9369], device='cuda:0')
+                # mean = 4.6955e-01 !
+
                 mapping_scores = torch.stack([torch.mean(chunk) for chunk in grouped_synonym_scores])
-                assert len(mapping_scores) == len(annotation_batch.nums)
+                assert len(mapping_scores) == len(annotation_batch.nums)                                                ; self.writelog(f"\tsynonym scores = {synonym_scores}\n\tgrouped = {grouped_synonym_scores}\n\tmapping = {mapping_scores}\n")
 
                 # preserve N best scored mappings
                 # scale N in case there are less than N tgt candidates in this batch
@@ -244,6 +275,9 @@ class MappingPredictor:
                 batch_base_candidate_idx += len(annotation_batch.nums)
 
             for candidate_idx, mapping_score in zip(final_best_idxs, final_best_scores):
+
+                if mapping_score > -1: self.writelog(f"\t{candidate_idx} score = {mapping_score}\t cand = {tgt_class_candidates[candidate_idx.item()][0]}\n")
+
                 # ignore intial values (-1.0) for dummy mappings
                 # the threshold 0.9 is for mapping extension
                 # TODO threshold ?
@@ -258,7 +292,7 @@ class MappingPredictor:
                     )
 
             assert len(bert_matched_mappings) <= self.num_best_predictions
-            self.logger.info(f"The best scored class mappings for {src_class_iri} are\n{bert_matched_mappings}")
+            self.logger.info(f"The best scored class mappings for {src_class_iri} are\n{bert_matched_mappings}")        ; self.writelog(f"The best bert scored class mappings for {src_class_iri} are\n{bert_matched_mappings}\n")
             return bert_matched_mappings
 
         return bert_match()

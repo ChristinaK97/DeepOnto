@@ -77,6 +77,7 @@ class BERTMapPipeline:
             config (CfgNode): The configuration for BERTMap or BERTMapLt.
         """
         # load the configuration and confirm model name is valid
+        BERTSynonymClassifier.set_seed()
         self.config = config
         self.name = self.config.model
         if not self.name in MODEL_OPTIONS.keys():
@@ -141,7 +142,6 @@ class BERTMapPipeline:
                 corpora = TextSemanticsCorpora(
                     src_onto=self.src_onto,
                     tgt_onto=self.tgt_onto,
-                    tgt_onto_path= self.config.tgt_onto_path,
                     annotation_property_iris=self.annotation_property_iris,
                     additional_annotation_iris= self.config.additional_annotation_iris,
                     class_mappings=self.known_mappings,

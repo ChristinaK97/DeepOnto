@@ -33,7 +33,8 @@ class WordNetCorpus:
 
     def extractOntologyTokens(self, ontologyPath):
         g = Graph()
-        g.parse(source=ontologyPath, format="application/rdf+xml")
+        file_format = "application/rdf+xml" if ontologyPath.endswith((".rdf", ".owl")) else "turtle"
+        g.parse(source=ontologyPath, format=file_format)
 
         query = """
             SELECT ?annot

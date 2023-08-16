@@ -216,9 +216,12 @@ class BERTSynonymClassifier:
         return device
 
     @staticmethod
-    def set_seed(seed_val: int = 888):
+    def set_seed(seed_val: int = 0):
         """Set random seed for reproducible results."""
         random.seed(seed_val)
         np.random.seed(seed_val)
         torch.manual_seed(seed_val)
+        torch.cuda.manual_seed(seed_val)
         torch.cuda.manual_seed_all(seed_val)
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True

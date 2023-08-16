@@ -505,7 +505,6 @@ class TextSemanticsCorpora:
         self,
         src_onto: Ontology,
         tgt_onto: Ontology,
-        tgt_onto_path: str,
         annotation_property_iris: List[str],
         additional_annotation_iris: List[str],
         class_mappings: Optional[List[ReferenceMapping]] = None,
@@ -543,10 +542,11 @@ class TextSemanticsCorpora:
             self.add_samples_from_sub_corpus(auxiliary_onto_corpus)
 
 
-        # Build wordnet corpora from target (domain) ontology
+        # Build wordnet corpora from target (domain) ontology and auxiliary ontologies
         if use_wordnet:
-            self.wordnetCorpus = WordNetCorpus(tgt_onto_path, annotation_property_iris + additional_annotation_iris)
-            self.add_samples_from_sub_corpus(self.wordnetCorpus)
+            for onto in [tgt_onto] + self.auxiliary_ontos:
+                self.wordnetCorpus = WordNetCorpus(onto.owl_path, annotation_property_iris + additional_annotation_iris)
+                self.add_samples_from_sub_corpus(self.wordnetCorpus)
 
 
         # DataUtils.uniqify the samples

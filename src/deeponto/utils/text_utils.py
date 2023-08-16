@@ -142,6 +142,8 @@ class InvertedIndex:
             # value is a list of strings
             for token in self.tokenizer(v):
                 self.constructed_index[token].append(k)
+        # the majority of obj and data prop labels start with 'has'
+        self.constructed_index.pop('has', None)
 
     def idf_select(self, texts: Union[str, List[str]], pool_size: int = 200):
         """Given a list of tokens, select a set candidates based on the inverted document frequency (idf) scores.
