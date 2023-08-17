@@ -137,13 +137,20 @@ class InvertedIndex:
     def __init__(self, index: defaultdict, tokenizer: Tokenizer):
         self.tokenizer = tokenizer
         self.original_index = index
+        self.original_index.pop("http://www.w3.org/2002/07/owl#Thing", None)
+        self.original_index.pop("http://www.w3.org/2002/07/owl#Nothing", None)
         self.constructed_index = defaultdict(list)
+        self.D = len(self.original_index)
+
         for k, v in self.original_index.items():
             # value is a list of strings
             for token in self.tokenizer(v):
                 self.constructed_index[token].append(k)
         # the majority of obj and data prop labels start with 'has'
         self.constructed_index.pop('has', None)
+
+        # self.original_index = [(tgt_elem, 1) for tgt_elem in self.original_index.keys() if self.original_index[tgt_elem]]
+
 
     def idf_select(self, texts: Union[str, List[str]], pool_size: int = 200):
         """Given a list of tokens, select a set candidates based on the inverted document frequency (idf) scores.
@@ -152,7 +159,7 @@ class InvertedIndex:
         """
         candidate_pool = defaultdict(lambda: 0)
         # D := number of "documents", i.e., number of "keys" in the original index
-        D = len(self.original_index)
+        # D = len(self.original_index)
         for token in self.tokenizer(texts):
             # each token is associated with some classes
             potential_candidates = self.constructed_index[token]
@@ -160,11 +167,19 @@ class InvertedIndex:
                 continue
             # We use idf instead of tf because the text for each class is of different length, tf is not a fair measure
             # inverse document frequency: with more classes to have the current token tk, the score decreases
-            idf = math.log10(D / len(potential_candidates))
+            idf = math.log10(self.D / len(potential_candidates))
             for candidate in potential_candidates:
                 # each candidate class is scored by sum(idf)
                 candidate_pool[candidate] += idf
         candidate_pool = list(sorted(candidate_pool.items(), key=lambda item: item[1], reverse=True))
+        """
+        if not candidate_pool:
+            # test all as candidates
+            return self.original_index
+        """
         # print(f"Select {min(len(candidate_pool), pool_size)} candidates.")
         # select the first K ranked
         return candidate_pool[:pool_size]
+
+
+

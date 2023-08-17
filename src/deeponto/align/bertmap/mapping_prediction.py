@@ -94,11 +94,11 @@ class MappingPredictor:
             MappingPredictor.override = False
             with open(self.logfile, 'w') as file:
                 file.write("")
+
     def writelog(self, message):
         mode = "a" if exists(self.logfile) else "w"
-        with open(self.logfile, mode) as file:
+        with open(self.logfile, mode, encoding='utf-8') as file:
             file.write(message)
-
 
 
     def bert_mapping_score(
@@ -178,7 +178,7 @@ class MappingPredictor:
         tgt_class_candidates = self.tgt_inverted_annotation_index.idf_select(
             list(src_class_annotations), pool_size=self.num_raw_candidates
         )  # [(tgt_class_iri, idf_score)]
-        best_scored_mappings = []                                                                                       ; self.writelog(f"\nSrc annot = {src_class_annotations}\n\tTrg annot {len(tgt_class_candidates)} = " + ("\n\t".join(str(t) for t in tgt_class_candidates)) + "\n")
+        best_scored_mappings = []                                                                                       ; self.writelog(f"\n>> Src = {src_class_iri}\nSrc annot = {src_class_annotations}\n\tTrg annot {len(tgt_class_candidates)} = " + (("\n\t".join(str(t) for t in tgt_class_candidates)) if len(tgt_class_candidates) <= self.num_raw_candidates else "all") + "\n")
 
         # for string matching: save time if already found string-matched candidates
         def string_match():
@@ -219,7 +219,9 @@ class MappingPredictor:
                 annotation_pairs = list(itertools.product(src_class_annotations, tgt_candidate_annotations))
                 current_batch.annotations += annotation_pairs
                 num_annotation_pairs = len(annotation_pairs)
-                current_batch.nums.append(num_annotation_pairs)                                                         ; self.writelog(f"Tgt cand = {tgt_candidate_iri}\n\ttgt annot = {tgt_candidate_annotations}\n\tannot pairs = {annotation_pairs}\n\tnum annot pairs = {num_annotation_pairs}\n\tcurr batch = <{current_batch.annotations},\n\t\t{current_batch.nums}>\n")
+                current_batch.nums.append(num_annotation_pairs)
+
+                if len(tgt_class_candidates) <= self.num_raw_candidates: self.writelog(f"Tgt cand = {tgt_candidate_iri}\n\ttgt annot = {tgt_candidate_annotations}\n\tannot pairs = {annotation_pairs}\n\tnum annot pairs = {num_annotation_pairs}\n\tcurr batch = <{current_batch.annotations},\n\t\t{current_batch.nums}>\n")
 
                 # collect when the batch is full or for the last target class candidate
                 if sum(current_batch.nums) > batch_size or i == len(tgt_class_candidates) - 1:
@@ -269,7 +271,7 @@ class MappingPredictor:
                     torch.cat([batch_best_scores, final_best_scores]),
                     k=self.num_best_predictions,
                 )
-                final_best_idxs = torch.cat([batch_best_idxs, final_best_idxs])[_idxs]
+                final_best_idxs = torch.cat([batch_best_idxs, final_best_idxs])[_idxs]                                  ;self.writelog(f"Final Best = {final_best_scores}\n")
 
                 # update the index for target candidate classes
                 batch_base_candidate_idx += len(annotation_batch.nums)
