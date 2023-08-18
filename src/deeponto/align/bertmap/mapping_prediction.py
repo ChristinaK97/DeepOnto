@@ -151,7 +151,7 @@ class MappingPredictor:
         sim_scores = [levenshtein.normalized_similarity(src, tgt) for src, tgt in annotation_pairs]
         return max(sim_scores) if len(sim_scores) > 0 else 0.0
 
-
+# ======================================================================================================================
     """
     FIND BEST TGT CANDIDATES FOR src_class_iri
     """
@@ -295,9 +295,78 @@ class MappingPredictor:
 
             assert len(bert_matched_mappings) <= self.num_best_predictions
             self.logger.info(f"The best scored class mappings for {src_class_iri} are\n{bert_matched_mappings}")        ; self.writelog(f"The best bert scored class mappings for {src_class_iri} are\n{bert_matched_mappings}\n")
+
+            if not bert_matched_mappings:
+                self.get_low_score_candidates(src_class_iri, src_class_annotations, tgt_class_candidates, final_best_scores, final_best_idxs)
+
             return bert_matched_mappings
 
         return bert_match()
+
+
+    def get_low_score_candidates(self, src_class_iri, src_class_annotations,
+                                 tgt_class_candidates, final_best_scores, final_best_idxs,
+                                 k=10, high_thrs=0.45, perc_thrs=0.5):
+
+        """
+	    if best_candidates_list is empty:
+	    	get the topK no matter the score (sorted)
+	    	topKtoKeep <- [topK[0]] # best
+
+	    	if topKtoKeep[0] > high threshold eg 45-50%:
+
+	    		for each cj in topK[1:]:
+	    			calc diff_perc of topKtoKeep[-1] (worst of toKeep) and cj scores
+	    			if diff_perc < perc threshold (predefined):
+	    				topKtoKeep.append(cj)
+	    			else:
+	    				break # and don't examine the rest. Keep only those that are close to the first "high" scored candidate
+
+
+	    	else if even the best candidate has a very low score (eg 20%):
+
+	    		topKtoKeep <- topK # keep the eg top 10 best as potential candidates
+        """
+        self.writelog(f"\n\tGET LOW SCORE CAND FOR {src_class_iri}\n")
+        final_best_scores = final_best_scores[:k]
+        final_best_idxs = final_best_idxs[:k]
+        topToKeep = [(final_best_idxs[0], final_best_scores[0])]
+
+        best_low_score = topToKeep[0][1]
+        if best_low_score == -1:
+            self.writelog("\n\tAll scores are -1\n")
+            return
+
+        if best_low_score >= high_thrs:
+            self.writelog(f"\n\tBest low {best_low_score} is >= {high_thrs}\n")
+            for idx, cand_score in zip(final_best_idxs[1:], final_best_scores[1:]):
+                if cand_score == -1:
+                    break
+                worst_in_toKeep = topToKeep[-1][1]
+                percentage_diff = abs((cand_score - worst_in_toKeep) / worst_in_toKeep)
+                if percentage_diff < perc_thrs:
+                    topToKeep.append((idx, cand_score))
+                else:
+                    break
+
+        else:
+            self.writelog(f"\n\tBest low {best_low_score} is not >= {high_thrs}\n")
+            topToKeep = [(idx, cand_score) for idx, cand_score in zip(final_best_idxs, final_best_scores) if cand_score!=-1]
+
+        bert_matched_mappings = []
+        for candidate_idx, mapping_score in topToKeep:
+            self.writelog(f"\t\t{candidate_idx} score = {mapping_score}\t cand = {tgt_class_candidates[candidate_idx.item()][0]}\n")
+            tgt_candidate_iri = tgt_class_candidates[candidate_idx.item()][0]
+            bert_matched_mappings.append(
+                self.init_class_mapping(
+                    src_class_iri,
+                    tgt_candidate_iri,
+                    mapping_score.item(),
+                )
+            )
+
+
+# ======================================================================================================================
 
     def mapping_prediction(self):
         r"""Apply global matching for each class in the source ontology.

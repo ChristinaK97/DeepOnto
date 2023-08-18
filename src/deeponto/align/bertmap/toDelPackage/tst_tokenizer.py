@@ -37,6 +37,8 @@ def print_tokenizer(input_phrase):
 
 concat_col = "totpayamount"
 correct_split = "tot pay amount"
+human_readable = "total pay amount"
+match = "monetary amount"
 
 print_tokenizer(concat_col)
 print_tokenizer(correct_split)
@@ -48,8 +50,7 @@ print_tokenizer(wordninja_split)
 cosine_sim([correct_split, wordninja_split], embed_pair([correct_split, wordninja_split]))
 print()
 
-match = "monetary amount"
 cosine_sim([concat_col, match], embed_pair([concat_col, match]))
 cosine_sim([wordninja_split, match], embed_pair([wordninja_split, match]))
 cosine_sim([correct_split, match], embed_pair([correct_split, match]))
-cosine_sim(["total pay amount", match], embed_pair(["total pay amount", match]))
+cosine_sim([human_readable, match], embed_pair([human_readable, match]))
