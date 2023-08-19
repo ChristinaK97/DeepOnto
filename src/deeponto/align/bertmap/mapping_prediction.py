@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from os.path import exists
 from typing import Optional, List, Set, Tuple
+
+from thefuzz import fuzz
 from yacs.config import CfgNode
 import os
 from textdistance import levenshtein
@@ -327,36 +329,42 @@ class MappingPredictor:
 
 	    		topKtoKeep <- topK # keep the eg top 10 best as potential candidates
         """
-        self.writelog(f"\n\tGET LOW SCORE CAND FOR {src_class_iri}\n")
-        final_best_scores = final_best_scores[:k]
-        final_best_idxs = final_best_idxs[:k]
-        topToKeep = [(final_best_idxs[0], final_best_scores[0])]
 
-        best_low_score = topToKeep[0][1]
-        if best_low_score == -1:
+        def leven(idx):
+            src_annotations = self.src_annotation_index[src_class_iri]
+            tgt_annotations = self.tgt_annotation_index[tgt_class_candidates[idx][0]]
+            self.writelog(f"\n\t\t{tgt_class_candidates[idx][0]}") ; [self.writelog(f"\n\t\t{t_ann} : {fuzz.token_sort_ratio(s_ann,t_ann)}") for s_ann, t_ann in itertools.product(src_annotations, tgt_annotations)]
+            return max([fuzz.token_sort_ratio(s_ann, t_ann) for s_ann, t_ann in
+                        itertools.product(src_annotations, tgt_annotations)])
+
+        self.writelog(f"\n\tGET LOW SCORE CAND FOR {src_class_iri}\n")
+        if final_best_scores[0] == -1:
             self.writelog("\n\tAll scores are -1\n")
             return
 
-        if best_low_score >= high_thrs:
-            self.writelog(f"\n\tBest low {best_low_score} is >= {high_thrs}\n")
-            for idx, cand_score in zip(final_best_idxs[1:], final_best_scores[1:]):
-                if cand_score == -1:
-                    break
-                worst_in_toKeep = topToKeep[-1][1]
-                percentage_diff = abs((cand_score - worst_in_toKeep) / worst_in_toKeep)
-                if percentage_diff < perc_thrs:
-                    topToKeep.append((idx, cand_score))
-                else:
-                    break
 
-        else:
-            self.writelog(f"\n\tBest low {best_low_score} is not >= {high_thrs}\n")
-            topToKeep = [(idx, cand_score) for idx, cand_score in zip(final_best_idxs, final_best_scores) if cand_score!=-1]
+        final_best_scores = final_best_scores[:k]
+        final_best_idxs = [idx.item() for idx in final_best_idxs[:k]]
+        best_bert_score = final_best_scores[0]
+        max_leven = leven(final_best_idxs[0])
+        topToKeep = [(final_best_idxs[0], best_bert_score, max_leven)]
+
+        for idx, cand_score in zip(final_best_idxs[1:], final_best_scores[1:]):
+            if cand_score == -1:
+                break
+            percentage_diff = abs((cand_score - best_bert_score) / best_bert_score)
+            cand_leven = leven(idx)
+
+            if percentage_diff < perc_thrs or max_leven < cand_leven:
+                topToKeep.append((idx, cand_score, cand_leven))
+                max_leven = max(max_leven, cand_leven)
+
 
         bert_matched_mappings = []
-        for candidate_idx, mapping_score in topToKeep:
-            self.writelog(f"\t\t{candidate_idx} score = {mapping_score}\t cand = {tgt_class_candidates[candidate_idx.item()][0]}\n")
-            tgt_candidate_iri = tgt_class_candidates[candidate_idx.item()][0]
+        self.writelog("\n")
+        for candidate_idx, mapping_score, _leven in topToKeep:
+            self.writelog(f"\t\t{candidate_idx} score = {mapping_score}, {_leven}\t cand = {tgt_class_candidates[candidate_idx][0]}\n")
+            tgt_candidate_iri = tgt_class_candidates[candidate_idx][0]
             bert_matched_mappings.append(
                 self.init_class_mapping(
                     src_class_iri,
@@ -366,7 +374,8 @@ class MappingPredictor:
             )
 
 
-# ======================================================================================================================
+
+    # ======================================================================================================================
 
     def mapping_prediction(self):
         r"""Apply global matching for each class in the source ontology.
