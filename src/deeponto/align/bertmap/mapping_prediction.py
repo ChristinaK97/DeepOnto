@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from os.path import exists
 from typing import Optional, List, Set, Tuple
@@ -309,22 +310,19 @@ class MappingPredictor:
 # ----------------------------------------------------------------------------------------------------------------------
     def rank_candidates(self, src_class_iri, tgt_class_candidates, final_best_idx):
         def sort_scores(scores):
-            def compare_candidates(candidate):
-                score, length = candidate[1], candidate[2]
-                return -score, length
-            sorted_scores = sorted(scores, key=compare_candidates, reverse=True)
-            return sorted_scores
+            return sorted(scores, key=lambda x: x[1], reverse=True)
+
         def score_scr_tgt_pair(idx, tgt_annotations):
             candidate_scores = []
             for src_annot, tgt_annot in itertools.product(src_annotations, tgt_annotations):
-                tgt_tokens = re.findall(r'\w+', tgt_annot)
-                pair_score = [idx, len(tgt_tokens), len(tgt_tokens)]
+                tgt_tokens = re.findall(r'\b(?!has\b)\w+', tgt_annot)
+                pair_score = 0
                 for token in tgt_tokens:
-                    partial_score = fuzz.partial_ratio(token, src_annot)
-                    if partial_score == 100:
-                        pair_score[1] -= 1
+                    if len(token) > 1 and fuzz.partial_ratio(token, src_annot) == 100:
+                        pair_score += 1
+                pair_score /= len(tgt_tokens)
+                candidate_scores.append([idx, pair_score])
                 self.writelog(f"\n\t\t\t{idx} : {tgt_annot} {pair_score}")
-                candidate_scores.append(pair_score)
             final_candidate_score = sort_scores(candidate_scores)[0]
             return final_candidate_score
 
@@ -335,20 +333,22 @@ class MappingPredictor:
             for idx in final_best_idx
         ]
         final_candidates_scores = sort_scores(final_candidates_scores)
-        ranking, current_rank, prev_scores = {}, 0, None
+        ranking, current_rank, prev_score = {}, 0, None
 
-        for idx, score, length in final_candidates_scores:
-            if (score, length) != prev_scores:
+        for idx, score in final_candidates_scores:
+            if score == 0:
+                continue
+            elif score != prev_score:
                 current_rank += 1
             ranking[idx] = current_rank
-            prev_scores = (score, length)
+            prev_score = score
         self.writelog(f"\n\t\tRanking = {final_candidates_scores}\n\t\t{ranking}\n")
         return ranking
 
 
     def get_low_score_candidates(self, src_class_iri,
                                  tgt_class_candidates, final_best_scores, final_best_idxs,
-                                 k=10, high_thrs=0.45, perc_thrs=0.5):
+                                 k=10, perc_thrs=0.5):
 
 
         self.writelog(f"\n\tGET LOW SCORE CAND FOR {src_class_iri}\n")
@@ -356,22 +356,29 @@ class MappingPredictor:
             self.writelog("\n\tAll scores are -1\n")
             return
 
+        def is_suitable_candidate():
+            return \
+               (percentage_diff < perc_thrs and (cand_rank < math.inf or cand_score > perc_thrs)) \
+            or (cand_rank < math.inf and cand_rank <= best_rank)
+
 
         final_best_scores = [bert_score for bert_score in final_best_scores[:k] if bert_score!=-1]
         final_best_idxs = [idx.item() for idx in final_best_idxs[:k] if idx!=-1]
         ranking = self.rank_candidates(src_class_iri, tgt_class_candidates, final_best_idxs)
 
         best_bert_score = final_best_scores[0]
-        best_rank = ranking[final_best_idxs[0]]
-        topToKeep = [(final_best_idxs[0], best_bert_score, best_rank)]
-
+        best_rank = ranking.get(final_best_idxs[0], math.inf)
+        if best_rank < math.inf or best_bert_score >= perc_thrs:
+            topToKeep = [(final_best_idxs[0], best_bert_score, best_rank)]
+        else:
+            topToKeep = []
 
         for idx, cand_score in zip(final_best_idxs[1:], final_best_scores[1:]):
 
             percentage_diff = abs((cand_score - best_bert_score) / best_bert_score)
-            cand_rank = ranking[idx]
+            cand_rank = ranking.get(idx, math.inf)
 
-            if percentage_diff < perc_thrs or cand_rank <= best_rank:
+            if is_suitable_candidate():
                 topToKeep.append((idx, cand_score, cand_rank))
                 best_rank = min(best_rank, cand_rank)
 

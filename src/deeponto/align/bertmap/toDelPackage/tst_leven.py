@@ -1,4 +1,5 @@
 import itertools
+import math
 import re
 from itertools import product
 
@@ -63,6 +64,12 @@ tgt_annots = [['rate'], ['interest rate'], ['something else with interest rate']
 
 l = [[4, 1, 2], [6, 1, 1], [11, 1, 1], [2, 2, 3], [1, 2, 3], [8, 2, 2], [10, 2, 2], [7, 3, 3], [5, 3, 3], [0, 5, 5]]
 print(sort_scores(l))
+
+best_rank = math.inf
+best_bert_score = 0.005
+perc_thrs = 0.5
+print((best_rank == math.inf and best_bert_score >= perc_thrs) or best_rank < math.inf)
+
 
 """
        def get_low_score_candidates(self, src_class_iri,
