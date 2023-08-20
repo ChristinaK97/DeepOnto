@@ -17,7 +17,7 @@ from __future__ import annotations
 import math
 import re
 from os.path import exists
-from typing import Optional, List, Set, Tuple
+from typing import Optional, List, Set
 
 from thefuzz import fuzz
 from yacs.config import CfgNode
@@ -34,6 +34,7 @@ from src.deeponto.align.mapping import EntityMapping
 from src.deeponto.onto import Ontology
 from src.deeponto.utils import FileUtils, Tokenizer
 from .bert_classifier import BERTSynonymClassifier
+from ...utils.kg_utils import BEST_RANK
 
 
 # @paper(
@@ -89,7 +90,7 @@ class MappingPredictor:
         self.batch_size_for_prediction = batch_size_for_prediction
         self.output_path = output_path
 
-        self.init_class_mapping = lambda head, tail, score: EntityMapping(head, tail, "<EquivalentTo>", score)
+        self.init_class_mapping = lambda head, tail, score, rank: EntityMapping(head, tail, "<EquivalentTo>", score, rank)
 
 
         # new log file
@@ -198,7 +199,7 @@ class MappingPredictor:
                 if prelim_score > 0.0:
                     # if src_class_annotations.intersection(tgt_candidate_annotations):
                     string_matched_mappings.append(
-                        self.init_class_mapping(src_class_iri, tgt_candidate_iri, prelim_score)
+                        self.init_class_mapping(src_class_iri, tgt_candidate_iri, prelim_score, BEST_RANK)
                     )
 
             return string_matched_mappings
@@ -294,13 +295,15 @@ class MappingPredictor:
                             src_class_iri,
                             tgt_candidate_iri,
                             mapping_score.item(),
+                            BEST_RANK
                         )
                     )
 
             assert len(bert_matched_mappings) <= self.num_best_predictions
             self.logger.info(f"The best scored class mappings for {src_class_iri} are\n{bert_matched_mappings}")        ; self.writelog(f"The best bert scored class mappings for {src_class_iri} are\n{bert_matched_mappings}\n")
 
-            if not bert_matched_mappings:
+            if not bert_matched_mappings and final_best_scores[0] != -1:    # 1
+                bert_matched_mappings = \
                 self.get_low_score_candidates(src_class_iri, tgt_class_candidates, final_best_scores, final_best_idxs)
 
             return bert_matched_mappings
@@ -376,7 +379,7 @@ class MappingPredictor:
 
     def rank_candidates(self, src_class_iri, tgt_class_candidates, final_best_idx):
         def sort_scores(scores):
-            return sorted(scores, key=lambda x: (x[1], x[2]), reverse=True) # 8.1
+            return sorted(scores, key=lambda x: (x[1], x[2]), reverse=True)  # 8.1
 
         def score_scr_tgt_pair(idx, tgt_annotations):
             candidate_scores = []
@@ -415,9 +418,6 @@ class MappingPredictor:
                                  tgt_class_candidates, final_best_scores, final_best_idxs,
                                  k=10, perc_thrs=0.5):
         self.writelog(f"\n\tGET LOW SCORE CAND FOR {src_class_iri}\n")
-        if final_best_scores[0] == -1:  # 1
-            self.writelog("\n\tAll scores are -1\n")
-            return
 
         def is_suitable_candidate():    # 6
             return \
@@ -448,17 +448,19 @@ class MappingPredictor:
                 best_rank = min(best_rank, cand_rank)
 
         # 7
-        bert_matched_mappings = []                                                                                      ;self.writelog("\n")
-        for candidate_idx, mapping_score, _rank in topToKeep:
-            tgt_candidate_iri = tgt_class_candidates[candidate_idx][0]                                                  ;self.writelog(f"\t\t{candidate_idx} score = {mapping_score}, {_rank}\t cand = {tgt_class_candidates[candidate_idx][0]}\n")
-            bert_matched_mappings.append(
+        low_score_mappings = []                                                                                         ;self.writelog("\n")
+        for candidate_idx, mapping_score, rank in topToKeep:
+            tgt_candidate_iri = tgt_class_candidates[candidate_idx][0]                                                  ;self.writelog(f"\t\t{candidate_idx} score = {mapping_score}, {rank}\t cand = {tgt_class_candidates[candidate_idx][0]}\n")
+            if rank == math.inf: rank = self.num_raw_candidates + 1
+            low_score_mappings.append(
                 self.init_class_mapping(
                     src_class_iri,
                     tgt_candidate_iri,
                     mapping_score.item(),
+                    rank
                 )
             )
-
+        return low_score_mappings
 
 
     # ======================================================================================================================
@@ -498,7 +500,7 @@ class MappingPredictor:
                 FileUtils.save_file(mapping_index, os.path.join(match_dir, "raw_mappings.json"))
                 # also save a .tsv version
                 mapping_in_tuples = list(itertools.chain.from_iterable(mapping_index.values()))
-                mapping_df = pd.DataFrame(mapping_in_tuples, columns=["SrcEntity", "TgtEntity", "Score"])
+                mapping_df = pd.DataFrame(mapping_in_tuples, columns=["SrcEntity", "TgtEntity", "Score", "Rank"])
                 mapping_df.to_csv(os.path.join(match_dir, "raw_mappings.tsv"), sep="\t", index=False)
                 self.logger.info("Save currently computed mappings to prevent undesirable loss.")
 

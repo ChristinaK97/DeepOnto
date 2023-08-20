@@ -22,6 +22,7 @@ import random
 
 from src.deeponto.onto import Ontology
 from src.deeponto.utils import FileUtils, DataUtils, Tokenizer
+from src.deeponto.utils.kg_utils import BEST_RANK
 
 if TYPE_CHECKING:
     from org.semanticweb.owlapi.model import OWLObject  # type: ignore
@@ -49,7 +50,7 @@ class EntityMapping:
         score (float, optional): The score that indicates the confidence of this mapping. Defaults to `0.0`.
     """
 
-    def __init__(self, src_entity_iri: str, tgt_entity_iri: str, relation: str = DEFAULT_REL, score: float = 0.0):
+    def __init__(self, src_entity_iri: str, tgt_entity_iri: str, relation: str = DEFAULT_REL, score: float = 0.0, rank: int = BEST_RANK):
         """Intialise an entity mapping.
 
         Args:
@@ -63,10 +64,11 @@ class EntityMapping:
         self.tail = tgt_entity_iri
         self.relation = relation
         self.score = score
+        self.rank = rank
 
     @classmethod
     def from_owl_objects(
-        cls, src_entity: OWLObject, tgt_entity: OWLObject, relation: str = DEFAULT_REL, score: float = 0.0
+        cls, src_entity: OWLObject, tgt_entity: OWLObject, relation: str = DEFAULT_REL, score: float = 0.0, rank: int = BEST_RANK
     ):
         """Create an entity mapping from two `OWLObject` entities which have an IRI.
 
@@ -79,7 +81,7 @@ class EntityMapping:
         Returns:
             (EntityMapping): The entity mapping created from the source and target entities.
         """
-        return cls(str(src_entity.getIRI()), str(tgt_entity.getIRI()), relation, score)
+        return cls(str(src_entity.getIRI()), str(tgt_entity.getIRI()), relation, score, rank)
 
     def to_tuple(self, with_score: bool = False):
         """Transform an entity mapping (`self`) to a tuple representation
@@ -87,7 +89,7 @@ class EntityMapping:
         Note that `relation` is discarded and `score` is optionally preserved).
         """
         if with_score:
-            return (self.head, self.tail, self.score)
+            return (self.head, self.tail, self.score, self.rank)
         else:
             return (self.head, self.tail)
 
@@ -144,11 +146,11 @@ class EntityMapping:
                 entity_mappings.append(ReferenceMapping(dp["SrcEntity"], dp["TgtEntity"], relation))
             else:
                 if dp["Score"] >= threshold:
-                    entity_mappings.append(EntityMapping(dp["SrcEntity"], dp["TgtEntity"], relation, dp["Score"]))
+                    entity_mappings.append(EntityMapping(dp["SrcEntity"], dp["TgtEntity"], relation, dp["Score"], dp["Rank"]))
         return entity_mappings
 
     def __repr__(self):
-        return f"EntityMapping({self.head} {self.relation} {self.tail}, {round(self.score, 6)})"
+        return f"EntityMapping({self.head} {self.relation} {self.tail}, {round(self.score, 6)}, {self.rank})"
 
 
 class ReferenceMapping(EntityMapping):
@@ -187,7 +189,7 @@ class ReferenceMapping(EntityMapping):
             self.add_candidate(candidate)
 
     def __repr__(self):
-        reference_mapping_str = f"ReferenceMapping({self.head} {self.relation} {self.tail}, 1.0)"
+        reference_mapping_str = f"ReferenceMapping({self.head} {self.relation} {self.tail}, 1.0, {BEST_RANK})"
         if self.candidates:
             candidate_mapping_str = pprintpp.pformat(self.candidates)
             reference_mapping_str += f" with candidates:\n{candidate_mapping_str}"
@@ -263,7 +265,7 @@ class SubsFromEquivMappingGenerator:
 
         subs_from_equivs, self.used_equiv_tgt_class_iris = self.online_construction()
         # turn into triples with scores 1.0
-        self.subs_from_equivs = [(c, p, 1.0) for c, p in subs_from_equivs]
+        self.subs_from_equivs = [(c, p, 1.0, BEST_RANK) for c, p in subs_from_equivs]
 
     def online_construction(self):
         r"""An **online** algorithm for constructing subsumption mappings from gold standard equivalence mappings.
@@ -326,7 +328,7 @@ class SubsFromEquivMappingGenerator:
 
     def save_subs(self, save_path: str):
         """Save the constructed subsumption mappings (in tuples) to a local `.tsv` file."""
-        subs_df = pd.DataFrame(self.subs_from_equivs, columns=["SrcEntity", "TgtEntity", "Score"])
+        subs_df = pd.DataFrame(self.subs_from_equivs, columns=["SrcEntity", "TgtEntity", "Score", "Rank"])
         subs_df.to_csv(save_path, sep="\t", index=False)
 
 

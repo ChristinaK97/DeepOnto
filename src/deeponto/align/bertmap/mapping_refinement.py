@@ -29,6 +29,7 @@ from src.deeponto.utils import FileUtils, Tokenizer
 from src.deeponto.utils.decorators import paper
 from src.deeponto.align.logmap import run_logmap_repair
 from .mapping_prediction import MappingPredictor
+from ...utils.kg_utils import BEST_RANK
 
 
 # @paper(
@@ -81,7 +82,7 @@ class MappingRefiner:
         # keep track of already scored mappings to prevent duplicated predictions
         self.mapping_score_dict = dict()
         for m in self.raw_mappings:
-            src_class_iri, tgt_class_iri, score = m.to_tuple(with_score=True)
+            src_class_iri, tgt_class_iri, score, rank = m.to_tuple(with_score=True)
             self.mapping_score_dict[(src_class_iri, tgt_class_iri)] = score
 
         # the threshold for final filtering the extended mappings
@@ -168,7 +169,7 @@ class MappingRefiner:
             # add new mappings to the expansion set
             expansion += new_mappings
             # renew frontier with the newly discovered mappings
-            frontier = [(x, y) for x, y, _ in new_mappings]
+            frontier = [(x, y) for x, y, _, _ in new_mappings]
 
             self.logger.info(f"Add {len(new_mappings)} mappings at iteration #{num_iter}.")
             num_iter += 1
@@ -179,13 +180,13 @@ class MappingRefiner:
             f"Finished iterative mapping extension with {num_extended} new mappings and in total {len(expansion)} extended mappings."
         )
 
-        extended_mapping_df = pd.DataFrame(expansion, columns=["SrcEntity", "TgtEntity", "Score"])
+        extended_mapping_df = pd.DataFrame(expansion, columns=["SrcEntity", "TgtEntity", "Score", "Rank"])
         extended_mapping_df.to_csv(self.extended_mapping_path, sep="\t", index=False)
 
         self.enlighten_status.update(demo="Mapping Filtering")
         
         filtered_expansion = [
-            (src, tgt, score) for src, tgt, score in expansion if score >= self.mapping_filtered_threshold
+            (src, tgt, score, rank) for src, tgt, score, rank in expansion if score >= self.mapping_filtered_threshold
         ]
         self.logger.info(
             f"Filtered the extended mappings by a threshold of {self.mapping_filtered_threshold}."
@@ -195,7 +196,7 @@ class MappingRefiner:
         for _ in range(len(filtered_expansion)):
             filtering_progress_bar.update()
 
-        filtered_mapping_df = pd.DataFrame(filtered_expansion, columns=["SrcEntity", "TgtEntity", "Score"])
+        filtered_mapping_df = pd.DataFrame(filtered_expansion, columns=["SrcEntity", "TgtEntity", "Score", "Rank"])
         filtered_mapping_df.to_csv(self.filtered_mapping_path, sep="\t", index=False)
         
         extension_progress_bar.close()
@@ -255,7 +256,7 @@ class MappingRefiner:
             if score < self.mapping_extension_threshold:
                 continue
 
-            extended_mappings.append((src_candidate_iri, tgt_candidate_iri, score))
+            extended_mappings.append((src_candidate_iri, tgt_candidate_iri, score, BEST_RANK))
 
         self.logger.info(
             f"New mappings (in tuples) extended from {(src_class_iri, tgt_class_iri)} are:\n" + f"{extended_mappings}"
@@ -307,10 +308,10 @@ class MappingRefiner:
         with open(os.path.join(self.logmap_repair_path, "mappings_repaired_with_LogMap.tsv"), "r") as f:
             lines = f.readlines()
         with open(os.path.join(self.output_path, "match", "repaired_mappings.tsv"), "w+") as f:
-            f.write("SrcEntity\tTgtEntity\tScore\n")
+            f.write("SrcEntity\tTgtEntity\tScore\tRank\n")
             for line in lines:
-                src_ent_iri, tgt_ent_iri, score = line.split("\t")
-                f.write(f"{src_ent_iri}\t{tgt_ent_iri}\t{score}")
+                src_ent_iri, tgt_ent_iri, score, rank = line.split("\t")
+                f.write(f"{src_ent_iri}\t{tgt_ent_iri}\t{score}\t{rank}")
                 repair_progress_bar.update()
 
         self.logger.info("Mapping repair finished.")
@@ -328,7 +329,7 @@ class MappingRefiner:
         
         # write the mappings into logmap format
         lines = []
-        for src_class_iri, tgt_class_iri, score in filtered_mappings_in_tuples:
+        for src_class_iri, tgt_class_iri, score, _rank in filtered_mappings_in_tuples:
             lines.append(f"{src_class_iri}|{tgt_class_iri}|=|{score}|CLS\n")
             
         # create a path to prevent error
