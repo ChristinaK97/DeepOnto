@@ -1,5 +1,6 @@
 import re
 import string
+from xml.sax import SAXParseException
 
 import nltk
 from nltk.corpus import stopwords
@@ -32,9 +33,14 @@ class WordNetCorpus:
 
 
     def extractOntologyTokens(self, ontologyPath):
-        g = Graph()
-        file_format = "application/rdf+xml" if ontologyPath.endswith((".rdf", ".owl")) else "turtle"
-        g.parse(source=ontologyPath, format=file_format)
+        try:
+            g = Graph()
+            file_format = "application/rdf+xml" if ontologyPath.endswith((".rdf", ".owl")) else "turtle"
+            g.parse(source=ontologyPath, format=file_format)
+        except SAXParseException:
+            # TODO add support for OWL Functional Syntax / Manchester OWL Syntax
+            print("(WORDNET CORPUS BUILDER:) Unsupported ontology file format")
+            return set()
 
         query = """
             SELECT ?annot

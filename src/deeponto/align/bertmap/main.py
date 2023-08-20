@@ -8,10 +8,12 @@ from torch.cuda import is_available, get_device_name, current_device
 print(is_available(), get_device_name(current_device()))
 # ================================================================================
 
+# DOntology = "FIBOLt.owl"
+DOntology = "SNOMED-CT-International-072023.owl"
 
 def config_for_do_mapping():
     # Define ontologies
-    tgt_onto_path = base + "FIBOLt.owl"
+    tgt_onto_path = base + DOntology
     return tgt_onto_path
 
 
@@ -23,13 +25,16 @@ def config_for_pii_mapping():
     ]
     config.additional_annotation_iris += dpv_annotations
     # use do for training
-    config.auxiliary_ontos = [base + "FIBOLt.owl"]
+    config.auxiliary_ontos = [base + DOntology]
     return tgt_onto_path
 
 
-# Setup config
+# SETUP CONFIG
 config = BERTMapPipeline.load_bertmap_config(DEFAULT_CONFIG_FILE)
 config.output_path = "bertmap data\\"
+
+# reasoner
+config.reasoner = "Elk"
 
 # annotation properties
 config.annotation_property_iris += [

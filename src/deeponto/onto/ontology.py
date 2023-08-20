@@ -43,13 +43,13 @@ from org.semanticweb.owlapi.apibinding import OWLManager  # type: ignore
 from org.semanticweb.owlapi.model import IRI, OWLObject, OWLClassExpression, OWLObjectPropertyExpression, OWLDataPropertyExpression, OWLNamedIndividual, OWLAxiom, AddAxiom, RemoveAxiom, AxiomType  # type: ignore
 
 # HERMIT REASONER ======================================================================================================
-from org.semanticweb.HermiT import ReasonerFactory  # type: ignore
+from org.semanticweb.HermiT import ReasonerFactory as HermitReasonerFactory  # type: ignore
 from org.semanticweb.owlapi.util import OWLObjectDuplicator, OWLEntityRemover  # type: ignore
 from org.semanticweb.owlapi.search import EntitySearcher  # type: ignore
 
 # ELK REASONER =========================================================================================================
-# import org.semanticweb.elk.owlapi.ElkReasonerFactory;
-# from org.semanticweb.elk.owlapi import ElkReasonerFactory as ReasonerFactory
+# IN JAVA : import org.semanticweb.elk.owlapi.ElkReasonerFactory;
+from org.semanticweb.elk.owlapi import ElkReasonerFactory
 
 
 # PELLET REASONER ======================================================================================================
@@ -575,9 +575,11 @@ class OntologyReasoner:
 
         # init reasoner factory
         if reasoner == "Hermit":
-            self.owl_reasoner_factory = ReasonerFactory()
+            self.owl_reasoner_factory = HermitReasonerFactory()
         elif reasoner == "Pellet":
             self.owl_reasoner_factory = PelletReasonerFactory.getInstance()
+        elif reasoner == "Elk":
+            self.owl_reasoner_factory = ElkReasonerFactory()
         else:
             raise Exception(f"Unsupported reasoner {reasoner}. Set config.reasoner to Hermit or Pellet")
 
