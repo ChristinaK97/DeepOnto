@@ -245,8 +245,8 @@ class BERTMapPipeline:
     def run_predictor(self, entity_type):
 
         # build the annotation thesaurus
-        self.src_annotation_index, _ = self.src_onto.build_annotation_index(self.annotation_property_iris.source, entity_type=entity_type, apply_lowercasing=self.config.bert.uncased)
-        self.tgt_annotation_index, _ = self.tgt_onto.build_annotation_index(self.annotation_property_iris.target, entity_type=entity_type, apply_lowercasing=self.config.bert.uncased)
+        self.src_annotation_index, _ = self.src_onto.build_annotation_index(self.annotation_property_iris.source, entity_type=entity_type)
+        self.tgt_annotation_index, _ = self.tgt_onto.build_annotation_index(self.annotation_property_iris.target, entity_type=entity_type)
 
         # mapping predictions
         self.global_matching_config = self.config.global_matching
@@ -261,8 +261,7 @@ class BERTMapPipeline:
             batch_size_for_prediction=self.bert_config.batch_size_for_prediction,
             logger=self.logger,
             enlighten_manager=self.enlighten_manager,
-            enlighten_status=self.enlighten_status,
-            apply_lowercasing=self.config.bert.uncased
+            enlighten_status=self.enlighten_status
         )
         self.mapping_refiner = None
 

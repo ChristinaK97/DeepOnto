@@ -77,7 +77,7 @@ config.bert.pretrained_path = \
     "yiyanghkust/finbert-pretrain" if DOntology == FIBO_FILE else \
     'monologg/biobert_v1.1_pubmed'
 
-config.bert.uncased = "finbert" in config.bert.pretrained_path
+
 
 config.bert.batch_size_for_training = 128
 config.bert.batch_size_for_prediction = 64

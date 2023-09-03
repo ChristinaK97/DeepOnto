@@ -69,14 +69,12 @@ class MappingPredictor:
         batch_size_for_prediction: int,
         logger: Logger,
         enlighten_manager: enlighten.Manager,
-        enlighten_status: enlighten.StatusBar,
-        apply_lowercasing: bool = True
+        enlighten_status: enlighten.StatusBar
     ):
         self.logger = logger
         self.enlighten_manager = enlighten_manager
         self.enlighten_status = enlighten_status
 
-        self.apply_lowercasing = apply_lowercasing
 
         self.tokenizer = Tokenizer.from_pretrained(tokenizer_path)
 
@@ -125,8 +123,7 @@ class MappingPredictor:
         prelim_score = self.edit_similarity_mapping_score(
             src_class_annotations,
             tgt_class_annotations,
-            string_match_only=True,
-            applied_lowercasing=not self.apply_lowercasing
+            string_match_only=True
         )
         if prelim_score == 1.0:
             return prelim_score
@@ -144,7 +141,6 @@ class MappingPredictor:
         src_class_annotations: Set[str],
         tgt_class_annotations: Set[str],
         string_match_only: bool = False,
-        applied_lowercasing: bool = True
     ):
         r"""$\textsf{BERTMap}$'s string match module and $\textsf{BERTMapLt}$'s mapping prediction function.
 
@@ -152,24 +148,16 @@ class MappingPredictor:
         of src-tgt class annotations, and return the **maximum** score as the mapping score.
         """
         # edge case when src and tgt classes have an exact match of annotation
-        src_lowercased = MappingPredictor.lowercase_set(src_class_annotations, applied_lowercasing)
-        tgt_lowercased = MappingPredictor.lowercase_set(tgt_class_annotations, applied_lowercasing)
-        if len(src_lowercased.intersection(tgt_lowercased)) > 0:
+        if len(src_class_annotations.intersection(tgt_class_annotations)) > 0:
             return 1.0
         # a shortcut to save time for $\textsf{BERTMap}$
         if string_match_only:
             return 0.0
-        annotation_pairs = itertools.product(src_lowercased, tgt_lowercased)
+        annotation_pairs = itertools.product(src_class_annotations, tgt_class_annotations)
         sim_scores = [levenshtein.normalized_similarity(src, tgt) for src, tgt in annotation_pairs]
         return max(sim_scores) if len(sim_scores) > 0 else 0.0
 
 
-    @staticmethod
-    def lowercase_set(original_set: Set[str], applied_lowercasing: bool = False):
-        if applied_lowercasing:
-            return original_set
-        else:
-            return {element.lower() for element in original_set}
 # ======================================================================================================================
     """
     FIND BEST TGT CANDIDATES FOR src_class_iri
@@ -208,8 +196,7 @@ class MappingPredictor:
                 prelim_score = self.edit_similarity_mapping_score(
                     src_class_annotations,
                     tgt_candidate_annotations,
-                    string_match_only=True,
-                    applied_lowercasing=not self.apply_lowercasing
+                    string_match_only=True
                 )
                 if prelim_score > 0.0:
                     # if src_class_annotations.intersection(tgt_candidate_annotations):
