@@ -352,7 +352,7 @@ class NegativeCandidateMappingGenerator:
         src_onto: Ontology,
         tgt_onto: Ontology,
         reference_class_mappings: List[ReferenceMapping],  # equivalence or subsumption
-        annotation_property_iris: List[str],  # for text-based candidates
+        annotation_property_iris,  # for text-based candidates
         tokenizer: Tokenizer,  # for text-based candidates
         max_hops: int = 5,  # for graph-based candidates
         for_subsumption: bool = False,  # if for subsumption, avoid adding ancestors as candidates
@@ -368,7 +368,7 @@ class NegativeCandidateMappingGenerator:
 
         # for IDF sample
         self.tgt_annotation_index, self.annotation_property_iris = self.tgt_onto.build_annotation_index(
-            annotation_property_iris
+            annotation_property_iris.target
         )
         self.tokenizer = tokenizer
         self.tgt_inverted_annotation_index = self.tgt_onto.build_inverted_annotation_index(

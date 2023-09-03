@@ -8,8 +8,11 @@ from torch.cuda import is_available, get_device_name, current_device
 print(is_available(), get_device_name(current_device()))
 # ================================================================================
 
-# DOntology = "FIBOLt.owl"
-DOntology = "SNOMED-CT-International-072023.owl"
+SNOMED_FILE = "SNOMED-CT-International-072023.owl"
+FIBO_FILE = "FIBOLt.owl"
+
+DOntology = SNOMED_FILE
+POntology = "medcsv.ttl"
 
 def config_for_do_mapping():
     # Define ontologies
@@ -34,26 +37,50 @@ config = BERTMapPipeline.load_bertmap_config(DEFAULT_CONFIG_FILE)
 config.output_path = "bertmap data\\"
 
 # reasoner
-config.reasoner = "Elk"
+config.reasoner = "Pellet" if DOntology == FIBO_FILE else "Elk"  # for snomed 
 
 # annotation properties
-config.annotation_property_iris += [
-    "https://www.omg.org/spec/Commons/AnnotationVocabulary/synonym",
-    "https://www.omg.org/spec/Commons/AnnotationVocabulary/abbreviation",
-    "https://www.omg.org/spec/Commons/AnnotationVocabulary/acronym"
-]
+if DOntology == FIBO_FILE:
+    config.annotation_property_iris.source = [
+        "http://www.w3.org/2000/01/rdf-schema#label"
+    ]
+    config.annotation_property_iris.target = [
+        "http://www.w3.org/2000/01/rdf-schema#label",
+        "https://www.omg.org/spec/Commons/AnnotationVocabulary/synonym",
+        "https://www.omg.org/spec/Commons/AnnotationVocabulary/abbreviation",
+        "https://www.omg.org/spec/Commons/AnnotationVocabulary/acronym"
+    ]
 
-config.additional_annotation_iris = [
-    "http://www.w3.org/2004/02/skos/core#definition",
-    "https://www.omg.org/spec/Commons/AnnotationVocabulary/explanatoryNote",
-    "http://www.w3.org/2004/02/skos/core#example",
-    "http://www.w3.org/2004/02/skos/core#note"
-]
+    config.additional_annotation_iris = [
+        "http://www.w3.org/2004/02/skos/core#definition",
+        "https://www.omg.org/spec/Commons/AnnotationVocabulary/explanatoryNote",
+        "http://www.w3.org/2004/02/skos/core#editorialNote",
+        "http://www.w3.org/2004/02/skos/core#example",
+        "http://www.w3.org/2004/02/skos/core#note"
+    ]
+
+elif DOntology == SNOMED_FILE:
+    config.annotation_property_iris.source = [
+        "http://www.w3.org/2000/01/rdf-schema#label"
+    ]
+    config.annotation_property_iris.target = [
+        "http://www.w3.org/2004/02/skos/core#altLabel",
+        "http://www.w3.org/2004/02/skos/core#prefLabel"
+    ]
+    config.additional_annotation_iris = [
+        "http://www.w3.org/2004/02/skos/core#definition"
+    ]
+
 
 # training parameters
-config.bert.pretrained_path = "yiyanghkust/finbert-pretrain"
-config.batch_size_for_training = 128
-config.batch_size_for_prediction = 64
+config.bert.pretrained_path = \
+    "yiyanghkust/finbert-pretrain" if DOntology == FIBO_FILE else \
+    'monologg/biobert_v1.1_pubmed'
+
+config.bert.uncased = "finbert" in config.bert.pretrained_path
+
+config.bert.batch_size_for_training = 128
+config.bert.batch_size_for_prediction = 64
 
 
 config.number_raw_candidates = 400
@@ -69,7 +96,7 @@ print(config)
 base = "bertmap data\\data_to_upload\\ontos\\"
 # src_onto_path = base + "fma2nci.small.owl"
 # tgt_onto_path = base + "nci2fma.small.owl"
-src_onto_path = base + "epibankPO.ttl"
+src_onto_path = base + POntology
 tgt_onto_path = config_for_do_mapping()
 
 src_onto = Ontology(src_onto_path, config.reasoner)

@@ -21,18 +21,31 @@ model: bertmap
 output_path: null
 
 annotation_property_iris:
-  - http://www.w3.org/2000/01/rdf-schema#label  # rdfs:label, the basic one
-  - http://www.geneontology.org/formats/oboInOwl#hasSynonym
-  - http://www.geneontology.org/formats/oboInOwl#hasExactSynonym
-  - http://www.w3.org/2004/02/skos/core#exactMatch
-  - http://www.ebi.ac.uk/efo/alternative_term
-  - http://www.orpha.net/ORDO/Orphanet_#symbol
-  - http://purl.org/sig/ont/fma/synonym
-  - http://www.w3.org/2004/02/skos/core#prefLabel
-  - http://www.w3.org/2004/02/skos/core#altLabel
-  - http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#P108
-  - http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#P90
-  
+  source:
+    - http://www.w3.org/2000/01/rdf-schema#label  # rdfs:label, the basic one
+    - http://www.geneontology.org/formats/oboInOwl#hasSynonym
+    - http://www.geneontology.org/formats/oboInOwl#hasExactSynonym
+    - http://www.w3.org/2004/02/skos/core#exactMatch
+    - http://www.ebi.ac.uk/efo/alternative_term
+    - http://www.orpha.net/ORDO/Orphanet_#symbol
+    - http://purl.org/sig/ont/fma/synonym
+    - http://www.w3.org/2004/02/skos/core#prefLabel
+    - http://www.w3.org/2004/02/skos/core#altLabel
+    - http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#P108
+    - http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#P90
+  target:
+    - http://www.w3.org/2000/01/rdf-schema#label  # rdfs:label, the basic one
+    - http://www.geneontology.org/formats/oboInOwl#hasSynonym
+    - http://www.geneontology.org/formats/oboInOwl#hasExactSynonym
+    - http://www.w3.org/2004/02/skos/core#exactMatch
+    - http://www.ebi.ac.uk/efo/alternative_term
+    - http://www.orpha.net/ORDO/Orphanet_#symbol
+    - http://purl.org/sig/ont/fma/synonym
+    - http://www.w3.org/2004/02/skos/core#prefLabel
+    - http://www.w3.org/2004/02/skos/core#altLabel
+    - http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#P108
+    - http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#P90
+
 # additional corpora
 known_mappings: null  # if provided, cross-ontology corpus will be built
 auxiliary_ontos: [] # a list of auxiliary ontology files used for extra synonym data

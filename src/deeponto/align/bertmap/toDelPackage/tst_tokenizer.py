@@ -42,6 +42,7 @@ match = "monetary amount"
 
 print_tokenizer(concat_col)
 print_tokenizer(correct_split)
+print_tokenizer(match)
 cosine_sim([concat_col, correct_split], embed_pair([concat_col, correct_split]))
 print()
 
@@ -54,3 +55,11 @@ cosine_sim([concat_col, match], embed_pair([concat_col, match]))
 cosine_sim([wordninja_split, match], embed_pair([wordninja_split, match]))
 cosine_sim([correct_split, match], embed_pair([correct_split, match]))
 cosine_sim([human_readable, match], embed_pair([human_readable, match]))
+
+
+model_name = 'monologg/biobert_v1.1_pubmed'
+tokenizer = BertTokenizer.from_pretrained(model_name)
+# model = BertModel.from_pretrained(model_name, output_hidden_states=True)
+
+print_tokenizer("bmi")
+print_tokenizer("BMI")

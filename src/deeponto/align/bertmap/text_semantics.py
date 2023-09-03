@@ -54,7 +54,7 @@ class AnnotationThesaurus:
         synonym_groups (List[Set[str]]): The list of synonym groups extracted from the ontology according to specified annotation properties.
     """
 
-    def __init__(self, onto: Ontology, annotation_property_iris: List[str], apply_transitivity: bool = False):
+    def __init__(self, onto: Ontology, annotation_property_iris: List[str], apply_transitivity: bool = False, apply_lowercasing: bool = True):
         r"""Initialise a thesaurus for ontology class annotations.
 
         Args:
@@ -70,7 +70,7 @@ class AnnotationThesaurus:
         index, iris = self.onto.build_annotation_index(
             annotation_property_iris=annotation_property_iris,
             entity_type= "Classes",
-            apply_lowercasing=True,
+            apply_lowercasing=apply_lowercasing,
         )
         self.annotation_index = index
         self.annotation_property_iris = iris
@@ -303,11 +303,12 @@ class IntraOntologyTextSemanticsCorpus:
         annotation_property_iris: List[str],
         soft_negative_ratio: int = 2,
         hard_negative_ratio: int = 2,
+        apply_lowercasing: bool = True
     ):
 
         self.onto = onto
         # $\textsf{BERTMap}$ does not apply synonym transitivity
-        self.thesaurus = AnnotationThesaurus(onto, annotation_property_iris, apply_transitivity=False)
+        self.thesaurus = AnnotationThesaurus(onto, annotation_property_iris, apply_transitivity=False, apply_lowercasing=apply_lowercasing)
 
         self.synonyms = self.thesaurus.synonym_sampling()
         # sample hard negatives first as they might not be enough
@@ -364,15 +365,16 @@ class CrossOntologyTextSemanticsCorpus:
         class_mappings: List[ReferenceMapping],
         src_onto: Ontology,
         tgt_onto: Ontology,
-        annotation_property_iris: List[str],
+        annotation_property_iris,
         negative_ratio: int = 4,
+        apply_lowercasing: bool = True
     ):
         self.class_mappings = class_mappings
         self.src_onto = src_onto
         self.tgt_onto = tgt_onto
         # build the annotation thesaurus for each ontology
-        self.src_thesaurus = AnnotationThesaurus(src_onto, annotation_property_iris)
-        self.tgt_thesaurus = AnnotationThesaurus(tgt_onto, annotation_property_iris)
+        self.src_thesaurus = AnnotationThesaurus(src_onto, annotation_property_iris.source, apply_lowercasing=apply_lowercasing)
+        self.tgt_thesaurus = AnnotationThesaurus(tgt_onto, annotation_property_iris.target, apply_lowercasing=apply_lowercasing)
         self.negative_ratio = negative_ratio
 
         self.synonyms = self.synonym_sampling_from_mappings()
@@ -505,20 +507,21 @@ class TextSemanticsCorpora:
         self,
         src_onto: Ontology,
         tgt_onto: Ontology,
-        annotation_property_iris: List[str],
+        annotation_property_iris,
         additional_annotation_iris: List[str],
         class_mappings: Optional[List[ReferenceMapping]] = None,
         auxiliary_ontos: Optional[List[Ontology]] = None,
-        use_wordnet: bool = False
+        use_wordnet: bool = False,
+        apply_lowercasing: bool = True
     ):
         self.synonyms = []
         self.nonsynonyms = []
 
         # build intra-ontology corpora
         # negative sample ratios are by default
-        self.intra_src_onto_corpus = IntraOntologyTextSemanticsCorpus(src_onto, annotation_property_iris)
+        self.intra_src_onto_corpus = IntraOntologyTextSemanticsCorpus(src_onto, annotation_property_iris.source, apply_lowercasing=apply_lowercasing)
         self.add_samples_from_sub_corpus(self.intra_src_onto_corpus)
-        self.intra_tgt_onto_corpus = IntraOntologyTextSemanticsCorpus(tgt_onto, annotation_property_iris)
+        self.intra_tgt_onto_corpus = IntraOntologyTextSemanticsCorpus(tgt_onto, annotation_property_iris.target, apply_lowercasing=apply_lowercasing)
         self.add_samples_from_sub_corpus(self.intra_tgt_onto_corpus)
 
         # build cross-ontolgoy corpora
@@ -526,7 +529,7 @@ class TextSemanticsCorpora:
         self.cross_onto_corpus = None
         if self.class_mappings:
             self.cross_onto_corpus = CrossOntologyTextSemanticsCorpus(
-                class_mappings, src_onto, tgt_onto, annotation_property_iris
+                class_mappings, src_onto, tgt_onto, annotation_property_iris, apply_lowercasing=apply_lowercasing
             )
             self.add_samples_from_sub_corpus(self.cross_onto_corpus)
 
@@ -536,7 +539,7 @@ class TextSemanticsCorpora:
         if self.auxiliary_ontos:
             for auxiliary_onto in self.auxiliary_ontos:
                 self.auxiliary_onto_corpora.append(
-                    IntraOntologyTextSemanticsCorpus(auxiliary_onto, annotation_property_iris)
+                    IntraOntologyTextSemanticsCorpus(auxiliary_onto, annotation_property_iris.source + annotation_property_iris.target, apply_lowercasing=apply_lowercasing)
                 )
         for auxiliary_onto_corpus in self.auxiliary_onto_corpora:
             self.add_samples_from_sub_corpus(auxiliary_onto_corpus)
@@ -545,7 +548,7 @@ class TextSemanticsCorpora:
         # Build wordnet corpora from target (domain) ontology and auxiliary ontologies
         if use_wordnet:
             for onto in [tgt_onto] + self.auxiliary_ontos:
-                self.wordnetCorpus = WordNetCorpus(onto.owl_path, annotation_property_iris + additional_annotation_iris)
+                self.wordnetCorpus = WordNetCorpus(onto.owl_path, annotation_property_iris.source + annotation_property_iris.target + additional_annotation_iris)
                 self.add_samples_from_sub_corpus(self.wordnetCorpus)
 
 

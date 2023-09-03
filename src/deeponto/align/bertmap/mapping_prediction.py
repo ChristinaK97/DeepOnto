@@ -70,10 +70,13 @@ class MappingPredictor:
         logger: Logger,
         enlighten_manager: enlighten.Manager,
         enlighten_status: enlighten.StatusBar,
+        apply_lowercasing: bool = True
     ):
         self.logger = logger
         self.enlighten_manager = enlighten_manager
         self.enlighten_status = enlighten_status
+
+        self.apply_lowercasing = apply_lowercasing
 
         self.tokenizer = Tokenizer.from_pretrained(tokenizer_path)
 
@@ -123,6 +126,7 @@ class MappingPredictor:
             src_class_annotations,
             tgt_class_annotations,
             string_match_only=True,
+            applied_lowercasing=not self.apply_lowercasing
         )
         if prelim_score == 1.0:
             return prelim_score
@@ -140,6 +144,7 @@ class MappingPredictor:
         src_class_annotations: Set[str],
         tgt_class_annotations: Set[str],
         string_match_only: bool = False,
+        applied_lowercasing: bool = True
     ):
         r"""$\textsf{BERTMap}$'s string match module and $\textsf{BERTMapLt}$'s mapping prediction function.
 
@@ -147,15 +152,24 @@ class MappingPredictor:
         of src-tgt class annotations, and return the **maximum** score as the mapping score.
         """
         # edge case when src and tgt classes have an exact match of annotation
-        if len(src_class_annotations.intersection(tgt_class_annotations)) > 0:
+        src_lowercased = MappingPredictor.lowercase_set(src_class_annotations, applied_lowercasing)
+        tgt_lowercased = MappingPredictor.lowercase_set(tgt_class_annotations, applied_lowercasing)
+        if len(src_lowercased.intersection(tgt_lowercased)) > 0:
             return 1.0
         # a shortcut to save time for $\textsf{BERTMap}$
         if string_match_only:
             return 0.0
-        annotation_pairs = itertools.product(src_class_annotations, tgt_class_annotations)
+        annotation_pairs = itertools.product(src_lowercased, tgt_lowercased)
         sim_scores = [levenshtein.normalized_similarity(src, tgt) for src, tgt in annotation_pairs]
         return max(sim_scores) if len(sim_scores) > 0 else 0.0
 
+
+    @staticmethod
+    def lowercase_set(original_set: Set[str], applied_lowercasing: bool = False):
+        if applied_lowercasing:
+            return original_set
+        else:
+            return {element.lower() for element in original_set}
 # ======================================================================================================================
     """
     FIND BEST TGT CANDIDATES FOR src_class_iri
@@ -195,6 +209,7 @@ class MappingPredictor:
                     src_class_annotations,
                     tgt_candidate_annotations,
                     string_match_only=True,
+                    applied_lowercasing=not self.apply_lowercasing
                 )
                 if prelim_score > 0.0:
                     # if src_class_annotations.intersection(tgt_candidate_annotations):
@@ -262,7 +277,7 @@ class MappingPredictor:
                 # grouped for cand = tensor([0.0022, 0.9369], device='cuda:0')
                 # mean = 4.6955e-01 !
 
-                mapping_scores = torch.stack([torch.mean(chunk) for chunk in grouped_synonym_scores])
+                mapping_scores = torch.stack([torch.max(chunk) for chunk in grouped_synonym_scores])
                 assert len(mapping_scores) == len(annotation_batch.nums)                                                ; self.writelog(f"\tsynonym scores = {synonym_scores}\n\tgrouped = {grouped_synonym_scores}\n\tmapping = {mapping_scores}\n")
 
                 # preserve N best scored mappings
