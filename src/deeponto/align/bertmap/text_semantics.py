@@ -536,7 +536,7 @@ class TextSemanticsCorpora:
         if self.auxiliary_ontos:
             for auxiliary_onto in self.auxiliary_ontos:
                 self.auxiliary_onto_corpora.append(
-                    IntraOntologyTextSemanticsCorpus(auxiliary_onto, annotation_property_iris.source + annotation_property_iris.target)
+                    IntraOntologyTextSemanticsCorpus(auxiliary_onto, annotation_property_iris.aux)
                 )
         for auxiliary_onto_corpus in self.auxiliary_onto_corpora:
             self.add_samples_from_sub_corpus(auxiliary_onto_corpus)
@@ -544,8 +544,10 @@ class TextSemanticsCorpora:
 
         # Build wordnet corpora from target (domain) ontology and auxiliary ontologies
         if use_wordnet:
-            for onto in [tgt_onto] + self.auxiliary_ontos:
-                self.wordnetCorpus = WordNetCorpus(onto.owl_path, annotation_property_iris.source + annotation_property_iris.target + additional_annotation_iris)
+            self.wordnetCorpus = WordNetCorpus(tgt_onto.owl_path, annotation_property_iris.target + additional_annotation_iris)
+            self.add_samples_from_sub_corpus(self.wordnetCorpus)
+            for onto in self.auxiliary_ontos:
+                self.wordnetCorpus = WordNetCorpus(onto.owl_path, annotation_property_iris.aux + additional_annotation_iris)
                 self.add_samples_from_sub_corpus(self.wordnetCorpus)
 
 

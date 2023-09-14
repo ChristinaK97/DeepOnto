@@ -8,11 +8,23 @@ from torch.cuda import is_available, get_device_name, current_device
 print(is_available(), get_device_name(current_device()))
 # ================================================================================
 
-SNOMED_FILE = "SNOMED-CT-International-072023.owl"
+
+
 FIBO_FILE = "FIBOLt.owl"
+SNOMED_FILE = "SNOMED-CT-International-072023.owl"
 
 DOntology = SNOMED_FILE
-POntology = "medcsv.ttl"
+POntology = 'medcsv_with_abbrevExpansions.ttl'
+
+MAP_TO_DO_TASK = True
+
+
+
+# Load CONFIG ====================================================================
+config = BERTMapPipeline.load_bertmap_config(DEFAULT_CONFIG_FILE)
+config.output_path = "bertmap data\\"
+
+# ================================================================================
 
 def config_for_do_mapping():
     # Define ontologies
@@ -23,34 +35,33 @@ def config_for_do_mapping():
 def config_for_pii_mapping():
     # Define ontologies
     tgt_onto_path = base + "dpvFull.ttl"
-    dpv_annotations = [
+    config.annotation_property_iris.target = [
+        "http://www.w3.org/2000/01/rdf-schema#label"
+    ]
+    config.additional_annotation_iris += [
         "http://purl.org/dc/terms/description"
     ]
-    config.additional_annotation_iris += dpv_annotations
     # use do for training
     config.auxiliary_ontos = [base + DOntology]
     return tgt_onto_path
 
 
-# SETUP CONFIG
-config = BERTMapPipeline.load_bertmap_config(DEFAULT_CONFIG_FILE)
-config.output_path = "bertmap data\\"
+# annotation properties ================================================================================
 
-# reasoner
-config.reasoner = "Pellet" if DOntology == FIBO_FILE else "Elk"  # for snomed 
+config.annotation_property_iris.source = [
+    "http://www.w3.org/2000/01/rdf-schema#label",
+    "http://www.w3.org/2004/02/skos/core#prefLabel",
+    "http://www.w3.org/2004/02/skos/core#altLabel"
+]
 
-# annotation properties
+
 if DOntology == FIBO_FILE:
-    config.annotation_property_iris.source = [
-        "http://www.w3.org/2000/01/rdf-schema#label"
-    ]
-    config.annotation_property_iris.target = [
+    DO_annotation_iris = [
         "http://www.w3.org/2000/01/rdf-schema#label",
         "https://www.omg.org/spec/Commons/AnnotationVocabulary/synonym",
         "https://www.omg.org/spec/Commons/AnnotationVocabulary/abbreviation",
         "https://www.omg.org/spec/Commons/AnnotationVocabulary/acronym"
     ]
-
     config.additional_annotation_iris = [
         "http://www.w3.org/2004/02/skos/core#definition",
         "https://www.omg.org/spec/Commons/AnnotationVocabulary/explanatoryNote",
@@ -60,10 +71,7 @@ if DOntology == FIBO_FILE:
     ]
 
 elif DOntology == SNOMED_FILE:
-    config.annotation_property_iris.source = [
-        "http://www.w3.org/2000/01/rdf-schema#label"
-    ]
-    config.annotation_property_iris.target = [
+    DO_annotation_iris = [
         "http://www.w3.org/2004/02/skos/core#altLabel",
         "http://www.w3.org/2004/02/skos/core#prefLabel"
     ]
@@ -71,8 +79,18 @@ elif DOntology == SNOMED_FILE:
         "http://www.w3.org/2004/02/skos/core#definition"
     ]
 
+if MAP_TO_DO_TASK:
+    config.annotation_property_iris.target = DO_annotation_iris
+else:
+    config.annotation_property_iris.aux = DO_annotation_iris
 
-# training parameters
+
+
+# reasoner ============================================================================================
+config.reasoner = "Pellet" if DOntology == FIBO_FILE else "Elk"  # for snomed
+
+
+# training parameters ================================================================================
 config.bert.pretrained_path = \
     "yiyanghkust/finbert-pretrain" if DOntology == FIBO_FILE else \
     'monologg/biobert_v1.1_pubmed'
@@ -91,13 +109,14 @@ config.global_matching.mapping_filtered_threshold = 0.95
 # config.bert.resume_training = False
 print(config)
 
+# ================================================================================
 
 # Load Ontologies and run bertmap pipeline
 base = "bertmap data\\data_to_upload\\ontos\\"
 # src_onto_path = base + "fma2nci.small.owl"
 # tgt_onto_path = base + "nci2fma.small.owl"
 src_onto_path = base + POntology
-tgt_onto_path = config_for_do_mapping()
+tgt_onto_path = config_for_do_mapping() if MAP_TO_DO_TASK else config_for_pii_mapping()
 
 src_onto = Ontology(src_onto_path, config.reasoner)
 tgt_onto = Ontology(tgt_onto_path, config.reasoner)
